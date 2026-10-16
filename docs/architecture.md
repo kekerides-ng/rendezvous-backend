@@ -1,0 +1,140 @@
+# Architecture — Companion platform
+
+**Master copy lives in `companion-backend/docs/architecture.md`.** Web and admin keep a copy; update the master first, then sync.
+
+Last major change: moved to four separate repos (contracts split out), modular monolith backend, PWA instead of native app, and Base + USDC smart-contract escrow (replaces Paystack/Monnify).
+
+## 1. The product
+A Nigeria-first companionship app. Verified adults book each other's time for dinner dates, event plus-ones, city tours, activities and coffee. Payment is locked in an on-chain USDC escrow until the meeting is confirmed.
+
+**Guardrails enforced in code**
+- No sexual services. Terms, copy, categories and moderation all say so.
+- 18+ only, proven by Smile ID document date of birth.
+- Fixed categories: `DINNER_DATE`, `EVENT_PLUS_ONE`, `CITY_TOUR`, `ACTIVITY_PARTNER`, `COFFEE_CONVERSATION`.
+- First booking between two users must be at a public venue.
+- No paid unlock of private media. All media is moderated.
+- SOS, trip share and report on every live session.
+
+## 2. The four repos
+
+| Repo | What it is | Stack | Deploys to |
+|---|---|---|---|
+| `companion-contracts` | The escrow smart contract, its tests and deploy scripts. Publishes `deployments/<network>.json` | Solidity · Foundry · OpenZeppelin | Base Sepolia, later Base mainnet (after review) |
+| `companion-backend` | All business logic, realtime, jobs, chain watcher, admin APIs | NestJS modular monolith · Bun (package manager) · Node 22 runtime · Drizzle · Postgres + PostGIS · Redis · BullMQ · Socket.io · viem | Railway or Fly.io (long-running server) |
+| `companion-web` | User PWA | Next.js (App Router) · Bun · Tailwind · TanStack Query · generated API client · embedded wallet SDK + wagmi/viem · socket.io-client · Serwist (service worker) | Vercel (or same host as backend) |
+| `companion-admin` | Admin console | Next.js (App Router) · Bun · Tailwind · TanStack Table · generated API client | Vercel, on `admin.` subdomain, behind Cloudflare Access later |
+
+**No shared code between repos.** They connect only through:
+1. **The backend's OpenAPI spec** at `/docs-json`. Web and admin generate their own typed clients from it (`bun run api:gen`).
+2. **`GET /chain/config`** on the backend, which returns chain id, USDC address, escrow address and ABI. The web app reads it; admin never signs transactions.
+   - The backend gets these values from `companion-contracts`: each deploy writes `deployments/<network>.json` (chainId, escrow, usdc, deployBlock, abi) and is tagged (e.g. `v1.0.0-sepolia`). The backend pulls a tag with `bun run chain:sync <tag>`.
+3. **Socket.io** on the backend, used by web for chat, offers, booking updates and live location.
+
+## 3. Backend: modular monolith
+
+One NestJS app, one deploy, one Postgres database. Inside, strict modules:
+
+| Module | Owns (tables) | Notes |
+|---|---|---|
+| auth | users, sessions, wallets | Login via embedded-wallet provider; own session cookie |
+| kyc | verifications | Smile ID web flow + webhook |
+| profile | profiles, availability, base_location (PostGIS) | Discovery search |
+| media | assets | R2 pre-signed uploads, moderation before publish |
+| messaging | conversations, messages, offers | Socket.io; keyword moderation |
+| booking | bookings, check_ins | State machine |
+| escrow | chain_events, chain_cursor, escrow_records | Chain watcher + operator transactions |
+| safety | reports, blocks, sos_events, disputes, trusted_contacts | Live location in Redis GEO |
+| reviews | reviews | Two-sided, after completion |
+| notifications | push_subscriptions, delivery_log | Web Push + SMS + email |
+| admin | admin_users, admin_sessions, audit_log, settings | Separate admin auth |
+
+**Module rules**
+- Each module's tables live in its own Postgres schema (`pgSchema('booking')`), so modules can be split into services later.
+- A module never queries another module's tables. It calls the other module's exported service (`safetyService.isBlocked(a, b)`).
+- Cross-module reactions use in-process events (`@nestjs/event-emitter`), e.g. `booking.completed` → reviews opens a review window.
+- Slow, retryable or scheduled work goes to BullMQ queues on Redis (KYC checks, notifications, auto-release keeper, chain backfill).
+- A multi-table change inside one module uses one DB transaction.
+
+## 4. Identity and auth
+
+**Users (web)**
+- Sign in with email or phone through the embedded-wallet provider (Privy is the default choice; Dynamic is the fallback, confirmed in build step 1). This also creates an embedded wallet on Base.
+- Users can instead connect their own wallet (Coinbase Wallet, MetaMask, Rainbow…).
+- The backend verifies the provider's token, creates or loads the user, links the wallet address, and issues **its own httpOnly session cookie** (short-lived access JWT + rotating refresh).
+- KYC must be verified before a user can make or accept an offer.
+
+**Admins (admin)**
+- Completely separate: `admin_users` with email + password (argon2) + TOTP 2FA. No wallet login.
+- Roles: `admin`, `moderator`. Every admin action writes an `audit_log` row (who, what, before, after, when, IP).
+- Admin routes live under `/admin/*` with `AdminGuard`. CORS for them allows only the admin origin.
+
+## 5. Money: Base + USDC escrow
+
+Amounts are stored as **integer micro-USDC** (6 decimals) in `bigint`. The UI shows USDC plus an approximate ₦ figure from a rate feed (display only).
+
+### Escrow contract (`companion-contracts/src/Escrow.sol`)
+- Holds only USDC (address set at deploy, immutable).
+- Built on OpenZeppelin: `SafeERC20`, `ReentrancyGuard`, `AccessControl`, `Pausable`, `EIP712`.
+- **Booking terms are signed by the backend** (EIP-712: bookingId, requester, provider, amount, feeBps, releaseAfter, deadline), so a user cannot fund with altered terms.
+
+| Function | Who can call | Effect |
+|---|---|---|
+| `fund(terms, backendSig)` | requester | Pulls USDC (approve or permit) and locks it. Emits `Funded` |
+| `release(bookingId)` | requester anytime; anyone after `releaseAfter` if not disputed | Pays provider amount − fee, fee → treasury. Emits `Released` |
+| `refund(bookingId, refundBps)` | OPERATOR (backend) | Cancellation per policy; the rest goes to the provider. Emits `Refunded` |
+| `dispute(bookingId)` | requester or provider, before release | Freezes funds. Emits `Disputed` |
+| `resolve(bookingId, toProviderBps)` | ARBITER (Safe multisig) | Splits funds. Emits `Resolved` |
+| `pause / setFee / setTreasury` | OWNER (Safe multisig) | Fee capped at 20% in code |
+
+Roles:
+- **OPERATOR**: backend hot key with minimal power (refund, keeper release).
+- **ARBITER** and **OWNER**: a Safe multisig. The admin console *proposes* resolutions; signers approve them in Safe.
+
+### Gas
+- Embedded wallets are ERC-4337 smart wallets with a paymaster (Coinbase CDP or Pimlico), so users never need ETH.
+- External wallets pay their own gas, which is cents on Base.
+
+### Chain watcher (backend `escrow` module)
+- `viem` watches escrow events and also backfills from the last processed block (`chain_cursor`). This survives restarts.
+- An event is acted on only after N confirmations (config, default 5 on Base). Events are idempotent on `txHash + logIndex`.
+- Each event drives the booking state machine.
+
+## 6. Booking flow
+
+```
+offer accepted ─► PENDING_FUNDING ──Funded (N conf)──► CONFIRMED ──PIN check-in at venue──► IN_SESSION
+      │                 │                                  │                                     │
+      │          30 min unfunded                     cancel ► refund(policy)                timer ends
+      │                 ▼                                  ▼                                     ▼
+      │              EXPIRED                           CANCELLED                    AWAITING_CONFIRMATION
+      │                                                                     │ requester confirms → release()
+      │                                                                     │ or 6 h pass → keeper release()
+      │                                                                     ▼
+      │                                                                 COMPLETED (Released)
+      │
+ SOS / report / dispute() at any point after funding ──► DISPUTED ──arbiter resolve()──► RESOLVED
+```
+- Cancellation policy (refund to requester): >24 h before start 100%, 2–24 h 75%, <2 h 50%.
+- Every transition goes through `transition(bookingId, from, to, actor)` with an optimistic lock (`version`).
+
+## 7. Realtime and safety in a PWA
+- Socket.io for chat, offers, typing, booking updates. Redis adapter, so it can scale to more instances.
+- **Live location only while the session page is open** (a PWA has no background GPS). The session screen uses the Wake Lock API and tells the user to keep it open.
+- SOS sends an SMS to trusted contacts (Termii) and alerts the admin queue. It does not depend on push.
+- Web Push needs the PWA installed to the home screen on iOS (16.4+). The web app prompts for install. Anything critical also goes by SMS.
+
+## 8. Security and compliance
+- Secrets only in env or a secret manager. The operator key is never in a repo or in admin.
+- Rate limits on login, OTP, offers, messages (Redis).
+- Validate every input with zod or class-validator. Use parameterized queries only.
+- Smile ID webhook signatures verified. Store result codes, not ID images.
+- NDPA: encrypt phone and DOB at column level; delete live location after the session; account deletion endpoint.
+- Contract: Foundry unit + fuzz + invariant tests; testnet (Base Sepolia) until reviewed. Mainnet only after an external review.
+- **Open legal question:** Nigeria's SEC regulates digital-asset businesses. Confirm the licensing position with a lawyer before real funds go live.
+
+## 9. Environments
+| Env | Backend | Web / Admin | Chain |
+|---|---|---|---|
+| Local | Docker Compose (Postgres+PostGIS, Redis, MinIO) + `bun run dev` | `bun run dev` | Anvil fork or Base Sepolia |
+| Staging | Railway/Fly + Neon + Upstash | Vercel previews | Base Sepolia |
+| Production | Railway/Fly (2+ instances) | Vercel | Base mainnet (after review) |

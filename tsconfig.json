@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    /* `node20`, not `commonjs` + `moduleResolution: node`. The legacy node10
+       resolver is deprecated on the TypeScript 6/7 line. Because package.json
+       has no `"type": "module"`, node20 still EMITS CommonJS — which is what
+       Nest needs — while resolving the way Node actually does: honouring each
+       dependency's `exports` map instead of guessing from `main`/`types`.
+       `moduleResolution` is deliberately unset; `module` implies it. */
+    "module": "node20",
+
+    /* Nest's DI reads constructor parameter types out of decorator metadata at
+       runtime, so these two are load-bearing, not stylistic. */
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "useUnknownInCatchVariables": true,
+
+    "declaration": false,
+    "sourceMap": true,
+    "outDir": "./dist",
+
+    /* No `baseUrl`. It is deprecated on the TypeScript 6/7 line, and since TS
+       4.1 `paths` resolves relative to this file's own directory without it —
+       so the alias works and there is no `ignoreDeprecations` to carry. */
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "pretty": true
+  },
+  "include": ["src/**/*", "test/**/*", "drizzle.config.ts", "vitest.config.mts"],
+  "exclude": ["node_modules", "dist"]
+}

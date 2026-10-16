@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /* Pinned explicitly. Without it, tsc infers rootDir from the widest common
+       directory of every included file — and drizzle.config.ts at the project
+       root pushes that to ".", which emits dist/src/main.js and breaks the
+       `start` script. */
+    "rootDir": "./src"
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "vitest.config.mts",
+    "drizzle.config.ts"
+  ]
+}

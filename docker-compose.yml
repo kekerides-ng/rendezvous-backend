@@ -1,0 +1,86 @@
+# Local development infrastructure for companion-backend.
+#
+# Every variable has an inline default, so `docker compose up -d` works straight
+# after a clone with no .env file. Compose reads the .env next to this file,
+# which is the same .env the app reads — one source of truth locally.
+#
+# HOST PORTS ARE OFFSET BY ONE from the conventional defaults (5433, 6380, 9002)
+# so this stack can run alongside the superseded `rendezvous old` monorepo's
+# stack, which holds 5432, 6379 and 9000-9001 on this machine. Container-internal
+# ports are untouched, so nothing inside the compose network changes.
+
+name: companion
+
+services:
+  postgres:
+    # PostGIS is required, not optional: profile.base_location and every radius
+    # search in discovery depend on it (architecture.md §3).
+    #
+    # The official image is amd64 only, so it runs under emulation on Apple
+    # Silicon — roughly 25% slower on CPU-bound queries, which is not worth
+    # swapping provenance for. If it ever bites, `imresamu/postgis:16-3.5` is a
+    # native arm64 drop-in.
+    image: postgis/postgis:16-3.4
+    container_name: companion-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-companion}
+    ports:
+      - '${POSTGRES_PORT:-5433}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Runs ONLY on an empty data volume. Change these files -> `docker compose down -v`.
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: companion-redis
+    restart: unless-stopped
+    # appendonly keeps BullMQ jobs and live-location keys across a dev restart.
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '${REDIS_PORT:-6380}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    # Stands in for Cloudflare R2 locally (architecture.md §3, media module).
+    # MinIO's own Docker Hub and quay repos no longer allow anonymous pulls and
+    # bitnami/* was sunset in 2025; this is upstream MinIO rebuilt by Chainguard.
+    # Caveat: the free tier publishes :latest only, so it is a moving tag.
+    image: chainguard/minio:latest
+    container_name: companion-minio
+    restart: unless-stopped
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+    ports:
+      - '${S3_PORT:-9002}:9000'
+      - '${S3_CONSOLE_PORT:-9003}:9001'
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

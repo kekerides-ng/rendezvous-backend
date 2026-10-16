@@ -1,0 +1,12 @@
+dist
+coverage
+node_modules
+bun.lock
+
+# Markdown is NOT formatted here, deliberately.
+#
+# docs/architecture.md and docs/build-plan.md are byte-identical copies shared
+# with companion-web and companion-admin. Prettier reflows tables and rewrites
+# *emphasis* to _emphasis_, which silently breaks that sync and makes a diff
+# against the other repos unreadable. CLAUDE.md is excluded for the same reason.
+*.md

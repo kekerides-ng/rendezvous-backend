@@ -1,0 +1,25 @@
+import 'dotenv/config';
+
+import { defineConfig } from 'drizzle-kit';
+
+/**
+ * Every module declares its tables in `src/modules/<module>/<module>.schema.ts`
+ * inside `pgSchema('<module>')`, so this glob picks them all up and one
+ * `db:generate` produces one migration across the whole app.
+ *
+ * `schemaFilter` must list every module schema drizzle-kit is allowed to touch.
+ * Without it, drizzle-kit only introspects `public`, decides the module schemas
+ * are undeclared, and happily writes a migration that drops them.
+ */
+export default defineConfig({
+  dialect: 'postgresql',
+  schema: './src/modules/**/*.schema.ts',
+  out: './drizzle',
+  dbCredentials: {
+    url: process.env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5433/companion',
+  },
+  // Grows as modules land (architecture.md §3). Empty-ish at step 0.1 by design.
+  schemaFilter: ['public'],
+  strict: true,
+  verbose: true,
+});

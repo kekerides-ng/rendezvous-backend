@@ -70,7 +70,18 @@ One NestJS app, one deploy, one Postgres database. Inside, strict modules:
 
 ## 5. Money: Base + USDC escrow
 
-Amounts are stored as **integer micro-USDC** (6 decimals) in `bigint`. The UI shows USDC plus an approximate ₦ figure from a rate feed (display only).
+Amounts are stored as **integer micro-USDC** (6 decimals) in `bigint`.
+
+**Users pay in stablecoin.** USDC is the currency of record: it is what a rate is set in, what is locked in escrow, what is released and what is refunded. The UI shows an approximate ₦ figure beside it from a rate feed, so people can judge a price in the money they think in — but the ₦ figure is **display only and never charged**, and the app never implies otherwise.
+
+Where each is primary:
+
+| Context | Primary | Secondary |
+|---|---|---|
+| Browsing — discovery cards, "from" rates | ≈₦ estimate | — |
+| Committing — plan totals, checkout, wallet balance, receipts | USDC | ≈₦ beside it |
+
+A card or a bank transfer is an **on-ramp**, not a payment method for a booking: it buys USDC into the user's wallet, and the booking is funded from that wallet. Nothing in the booking flow charges a card.
 
 ### Escrow contract (`companion-contracts/src/Escrow.sol`)
 - Holds only USDC (address set at deploy, immutable).

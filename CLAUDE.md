@@ -54,7 +54,7 @@ docs/
 9. Validate all input; parameterized queries only; no PII or private keys in logs.
 10. After each change: `bun run typecheck && bun run lint && bun run test`. Fix before moving on.
 11. When a decision changes, update `docs/architecture.md` in the same change.
-12. Conventional commits. Do not commit unless asked.
+12. Conventional commits. **Commit each implementation and each fix as it lands**, once `typecheck`, `lint` and `test` pass — one commit per coherent change, not one per session. Never add a remote or push without being asked.
 
 ## Chain integration rules
 - Contract code is NOT in this repo. Never write or edit Solidity here; changes go to `companion-contracts`.

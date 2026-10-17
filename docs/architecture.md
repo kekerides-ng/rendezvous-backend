@@ -21,7 +21,7 @@ A Nigeria-first companionship app. Verified adults book each other's time for di
 |---|---|---|---|
 | `companion-contracts` | The escrow smart contract, its tests and deploy scripts. Publishes `deployments/<network>.json` | Solidity · Foundry · OpenZeppelin | Base Sepolia, later Base mainnet (after review) |
 | `companion-backend` | All business logic, realtime, jobs, chain watcher, admin APIs | NestJS modular monolith · Bun (package manager) · Node 22 runtime · Drizzle · Postgres + PostGIS · Redis · BullMQ · Socket.io · viem | Railway or Fly.io (long-running server) |
-| `companion-web` | User PWA | Next.js (App Router) · Bun · Tailwind · TanStack Query · generated API client · embedded wallet SDK + wagmi/viem · socket.io-client · Serwist (service worker) | Vercel (or same host as backend) |
+| `companion-web` | User PWA | Next.js (App Router) · Bun · Tailwind · TanStack Query · generated API client · embedded wallet SDK + wagmi/viem · socket.io-client · Mapbox (static images now, GL JS when live location lands) · hand-written service worker | Vercel (or same host as backend) |
 | `companion-admin` | Admin console | Next.js (App Router) · Bun · Tailwind · TanStack Table · generated API client | Vercel, on `admin.` subdomain, behind Cloudflare Access later |
 
 **No shared code between repos.** They connect only through:
@@ -91,11 +91,14 @@ A card or a bank transfer is an **on-ramp**, not a payment method for a booking:
 | Function | Who can call | Effect |
 |---|---|---|
 | `fund(terms, backendSig)` | requester | Pulls USDC (approve or permit) and locks it. Emits `Funded` |
+| `topUp(bookingId, amount)` | requester, while `IN_SESSION` | Adds USDC to an already-funded booking, for time added mid-rendezvous. Emits `ToppedUp` |
 | `release(bookingId)` | requester anytime; anyone after `releaseAfter` if not disputed | Pays provider amount − fee, fee → treasury. Emits `Released` |
 | `refund(bookingId, refundBps)` | OPERATOR (backend) | Cancellation per policy; the rest goes to the provider. Emits `Refunded` |
 | `dispute(bookingId)` | requester or provider, before release | Freezes funds. Emits `Disputed` |
 | `resolve(bookingId, toProviderBps)` | ARBITER (Safe multisig) | Splits funds. Emits `Resolved` |
 | `pause / setFee / setTreasury` | OWNER (Safe multisig) | Fee capped at 20% in code |
+
+`topUp` exists because a rendezvous can be extended while it is running. The alternative — a second escrow for the extra hour — turns one evening into two payments to release, refund and dispute. A contract cannot gain a function after deployment, so this has to be in the first version.
 
 Roles:
 - **OPERATOR**: backend hot key with minimal power (refund, keeper release).
@@ -113,7 +116,7 @@ Roles:
 ## 6. Booking flow
 
 ```
-offer accepted ─► PENDING_FUNDING ──Funded (N conf)──► CONFIRMED ──PIN check-in at venue──► IN_SESSION
+offer accepted ─► PENDING_FUNDING ──Funded (N conf)──► CONFIRMED ──both confirm arrival──► IN_SESSION
       │                 │                                  │                                     │
       │          30 min unfunded                     cancel ► refund(policy)                timer ends
       │                 ▼                                  ▼                                     ▼
@@ -125,6 +128,8 @@ offer accepted ─► PENDING_FUNDING ──Funded (N conf)──► CONFIRMED �
       │
  SOS / report / dispute() at any point after funding ──► DISPUTED ──arbiter resolve()──► RESOLVED
 ```
+**Arrival is confirmed by both people, not one.** Each side shows a rotating 4-digit code (also encoded as a QR); entering or scanning the other's code records *your* confirmation. The booking holds both flags and only moves to `IN_SESSION` once each has confirmed, which is what makes "we were both there" a fact rather than one person's claim — it is the evidence a dispute turns on. A booking that is funded but never mutually confirmed falls to the cancellation policy, not to the provider.
+
 - Cancellation policy (refund to requester): >24 h before start 100%, 2–24 h 75%, <2 h 50%.
 - Every transition goes through `transition(bookingId, from, to, actor)` with an optimistic lock (`version`).
 

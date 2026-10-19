@@ -321,3 +321,28 @@ local Anvil fork is 31337 and the escrow integration tests need it.
 **Wrinkle:** `superRefine` returns a `ZodEffects`, which has **no `.shape`**.
 `loadEnv` reads `.shape` for its typo check, so the plain object is kept as
 `appEnvObject` and exported as `APP_ENV_KEYS`.
+
+### I12 · **Reverses I11** — the escrow module enforces the operator key, not `loadEnv`
+**2026-10-20, same day.** Jaco switched to the second option after seeing the
+first implemented. `OPERATOR_PRIVATE_KEY` stays `.optional()` in the schema;
+`requireOperatorKey(env)` in `common/config/env.ts` throws, and the escrow
+module calls it at construction (step 4.2).
+
+**Why this is the better call, which neither of us said when choosing:**
+`architecture.md` §3 says each module owns its own Postgres schema **so modules
+can be split into services later**. A boot-time check in `loadEnv` would make a
+future profile or messaging service refuse to start in production over an
+escrow key it will never use. Config validating shape, and each module
+enforcing its own requirements, is what keeps that split possible.
+
+**And it gives up almost nothing.** Nest builds the entire module graph at
+startup, so in any deployment that *does* include escrow the process still dies
+at boot — exactly as under I11, just scoped to the deployments that care. The
+"fails later" cost of option 2 is theoretical here.
+
+**Bonus:** `appEnvSchema` is a plain `ZodObject` again, so the `.shape` wrinkle
+from I11 disappears and `APP_ENV_KEYS` is gone.
+
+**Rules out:** a cross-field rule in `loadEnv`; any module reading
+`OPERATOR_PRIVATE_KEY` directly instead of through `requireOperatorKey`, which
+is where the error message explaining *what breaks* lives.

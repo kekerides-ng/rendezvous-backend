@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { EnvValidationError, findProbableTypos, loadEnv } from './env';
+import { EnvValidationError, findProbableTypos, loadEnv, requireOperatorKey } from './env';
 
 const valid = {
   NODE_ENV: 'test',
@@ -101,17 +101,15 @@ describe('the chain block', () => {
   });
 });
 
-describe('the operator key is required only in production', () => {
-  const production = {
-    ...valid,
-    NODE_ENV: 'production',
-    CHAIN_RPC_URL: 'https://mainnet.base.org',
-  } as const;
+describe('requireOperatorKey', () => {
+  const key = `0x${'b'.repeat(64)}`;
 
-  it('lets development and test boot without one', () => {
-    // Nobody running `bun run test` should need a funded wallet.
+  it('lets any environment boot without a key', () => {
+    // Config validates shape; it does not decide who needs the key. A future
+    // profile service must not refuse to start over an escrow key it never
+    // uses (architecture.md §3 — modules are splittable).
     expect(() => loadEnv(valid)).not.toThrow();
-    expect(() => loadEnv({ ...valid, NODE_ENV: 'development' })).not.toThrow();
+    expect(() => loadEnv({ ...valid, NODE_ENV: 'production' })).not.toThrow();
   });
 
   it('treats an empty string as absent, not as a malformed key', () => {
@@ -119,16 +117,23 @@ describe('the operator key is required only in production', () => {
     expect(() => loadEnv({ ...valid, OPERATOR_PRIVATE_KEY: '' })).not.toThrow();
   });
 
-  it('refuses to boot in production without one', () => {
-    // A missing key in production is not a feature being unavailable — it is
-    // refunds silently failing.
-    expect(() => loadEnv(production)).toThrow(/OPERATOR_PRIVATE_KEY/);
-    expect(() => loadEnv(production)).toThrow(/refunds/);
+  it('returns the key when the escrow module asks for one', () => {
+    expect(requireOperatorKey({ NODE_ENV: 'production', OPERATOR_PRIVATE_KEY: key })).toBe(key);
   });
 
-  it('boots in production once it is set', () => {
+  it('refuses to start the escrow module without one', () => {
     expect(() =>
-      loadEnv({ ...production, OPERATOR_PRIVATE_KEY: `0x${'b'.repeat(64)}` }),
-    ).not.toThrow();
+      requireOperatorKey({ NODE_ENV: 'production', OPERATOR_PRIVATE_KEY: undefined }),
+    ).toThrow(EnvValidationError);
+  });
+
+  it('says what breaks, not just what is missing', () => {
+    // "OPERATOR_PRIVATE_KEY is not set" tells you nothing about the cost.
+    try {
+      requireOperatorKey({ NODE_ENV: 'development', OPERATOR_PRIVATE_KEY: undefined });
+      expect.unreachable('should have thrown');
+    } catch (error) {
+      expect((error as EnvValidationError).message).toContain('refunds');
+    }
   });
 });

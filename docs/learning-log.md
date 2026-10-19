@@ -27,18 +27,19 @@ Three decisions inside it:
   has `PATH` and friends. But a variable within two edits of a declared key
   comes back as a **warning**, because a typo is otherwise invisible: the real
   key reads as "missing" while the value you set sits there unused.
-- **The operator key is required in production and optional everywhere else.**
-  Jaco chose `superRefine` on the merged schema over letting the escrow module
-  refuse to start. The rule spans two blocks — `NODE_ENV` is infra, the key is
-  chain — so neither schema can see both alone, and `.optional()` cannot say
-  "optional, except when it isn't". Boot is the only moment this check is
-  cheap: a missing key in production is not a feature being unavailable, it is
-  **refunds silently failing**, discovered by a user who did not get their
-  money back.
+- **The operator key is optional in config, and required by the module that
+  needs it.** Jaco's call: `requireOperatorKey(env)` throws, and the escrow
+  module calls it at construction rather than `loadEnv` enforcing it at boot.
+  The reasoning is in `docs/DECISIONS.md` I11/I12, and it comes down to §3 —
+  modules are meant to be splittable into services, and a boot-time check would
+  make a future profile service refuse to start in production over an escrow
+  key it never uses.
 
-That last one has a wrinkle worth knowing: `superRefine` returns a `ZodEffects`,
-which has **no `.shape`**. `loadEnv` reads `.shape` to build the typo list, so
-the plain object is kept as `appEnvObject` and exported as `APP_ENV_KEYS`.
+  It costs almost nothing in practice: Nest builds the whole module graph at
+  startup, so a deployment that *includes* escrow still dies at boot. The
+  error names what breaks rather than what is missing — "without it a cancelled
+  booking cannot be refunded" rather than "OPERATOR_PRIVATE_KEY is not set" —
+  because the second tells an operator nothing about the cost of ignoring it.
 
 **The thing most likely to break:** `unplugin-swc` in `vitest.config.mts`.
 esbuild does not emit `emitDecoratorMetadata`, so without it **Nest dependency

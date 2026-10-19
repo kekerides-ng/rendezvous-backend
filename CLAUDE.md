@@ -62,3 +62,4 @@ docs/
 - The ABI, addresses and deploy block come only from `chain/deployments/<network>.json`, synced with `bun run chain:sync <tag>`. Validate the file with zod at startup; refuse to boot if the chain id does not match `CHAIN_ID`.
 - The escrow module's EIP-712 domain and terms types must match the contract's. If `chain:sync` brings a new contract version, re-run the escrow integration tests against an Anvil fork before deploying.
 - `GET /chain/config` serves chainId, USDC address, escrow address and ABI to the web app.
+- `OPERATOR_PRIVATE_KEY` is **optional in the env schema on purpose**. The escrow module calls `requireOperatorKey(env)` from `common/config` at construction and refuses to start without it — so a deployment that does not run escrow can still boot (`docs/DECISIONS.md` I12). Never read the variable directly.

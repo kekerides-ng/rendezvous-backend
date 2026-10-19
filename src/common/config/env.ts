@@ -69,6 +69,11 @@ export const chainEnvSchema = z.object({
   // 0x + 64 hex characters. Checked for SHAPE only — a well-formed key that is
   // not funded is a runtime problem, and we never log or echo this value
   // (see common/logging/redact.ts).
+  //
+  // Optional HERE on purpose. Whether it is required depends on NODE_ENV, and
+  // config has no business knowing that a chain variable is conditional on an
+  // infra one. The module that needs the key enforces it — see
+  // `requireOperatorKey` below.
   OPERATOR_PRIVATE_KEY: z
     .string()
     .regex(/^0x[0-9a-fA-F]{64}$/, 'must be 0x followed by 64 hex characters')
@@ -76,40 +81,7 @@ export const chainEnvSchema = z.object({
     .or(z.literal('').transform(() => undefined)),
 });
 
-/** The plain object, kept so `loadEnv` can still read `.shape` for key names. */
-const appEnvObject = infraEnvSchema.extend(chainEnvSchema.shape);
-
-/**
- * The operator key is REQUIRED in production and may be empty everywhere else.
- *
- * Expressed with `superRefine` on the MERGED schema, because the rule spans two
- * fields: `NODE_ENV` lives in the infra block and the key lives in the chain
- * block, so neither schema can see both on its own. A plain `.optional()`
- * cannot say "optional, except when it isn't".
- *
- * Checked here rather than letting the escrow module refuse to start, because
- * boot is the only moment this is cheap. A key missing in production is not a
- * feature being unavailable — it is refunds silently failing, discovered by a
- * user who did not get their money back. Fail-fast config exists for exactly
- * this, and the alternative defers the error to whenever the first refund is
- * attempted, which could be weeks.
- *
- * NOTE: this returns a ZodEffects, not a ZodObject, so it has no `.shape` —
- * hence `appEnvObject` above.
- */
-export const appEnvSchema = appEnvObject.superRefine((value, ctx) => {
-  if (value.NODE_ENV === 'production' && !value.OPERATOR_PRIVATE_KEY) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['OPERATOR_PRIVATE_KEY'],
-      message:
-        'is required in production — without it the escrow operator cannot issue refunds',
-    });
-  }
-});
-
-/** Declared variable names, for the typo check in `loadEnv`. */
-export const APP_ENV_KEYS = Object.keys(appEnvObject.shape);
+export const appEnvSchema = infraEnvSchema.extend(chainEnvSchema.shape);
 
 export type Env = z.infer<typeof appEnvSchema>;
 
@@ -199,7 +171,7 @@ const describeTypo = ({
  */
 export function loadEnv(env: Readonly<Record<string, string | undefined>> = process.env) {
   const result = appEnvSchema.safeParse(env);
-  const declared = APP_ENV_KEYS;
+  const declared = Object.keys(appEnvSchema.shape);
 
   if (!result.success) {
     const issues = result.error.issues.map((issue) => {
@@ -222,4 +194,39 @@ export function loadEnv(env: Readonly<Record<string, string | undefined>> = proc
     env: result.data,
     warnings: findProbableTypos(declared, env).map(describeTypo),
   } as const;
+}
+
+/**
+ * The escrow module calls this at construction and refuses to start without a
+ * key (architecture.md §5: OPERATOR signs refunds and keeper releases).
+ *
+ * Enforced by the module rather than by `loadEnv`, which is the second of the
+ * two options and the right one for this architecture. Three reasons:
+ *
+ *   - **Modules are meant to be splittable into services** (architecture.md §3).
+ *     A boot-time check would make a future profile or messaging service refuse
+ *     to start in production over a key it will never use.
+ *   - **Config validates shape; modules enforce their own requirements.** A
+ *     cross-field rule in `loadEnv` means the config layer has to know that a
+ *     chain variable is conditional on an infra one.
+ *   - **It still fails fast.** Nest builds the whole module graph at startup,
+ *     so in any deployment that includes escrow the process dies at boot
+ *     exactly as it would have — just scoped to the deployments that care.
+ *
+ * It throws `EnvValidationError` so the message reads identically to a config
+ * failure, because from the operator's point of view that is what it is.
+ */
+export function requireOperatorKey(env: Pick<Env, 'OPERATOR_PRIVATE_KEY' | 'NODE_ENV'>): string {
+  if (env.OPERATOR_PRIVATE_KEY) return env.OPERATOR_PRIVATE_KEY;
+
+  throw new EnvValidationError(
+    [
+      'The escrow module cannot start without an operator key:',
+      '  ✗ OPERATOR_PRIVATE_KEY: not set',
+      '',
+      'It signs refunds and keeper releases. Without it a cancelled booking',
+      'cannot be refunded, which fails silently from the user\'s side.',
+    ].join('\n'),
+    ['OPERATOR_PRIVATE_KEY: not set'],
+  );
 }

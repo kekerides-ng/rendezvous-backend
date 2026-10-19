@@ -302,3 +302,22 @@ Each of these was invisible in a screenshot and found by a test or by reading.
 **The pattern:** a unit test of the function nearest the change would have passed through
 B3 and B4 both times. The tests that caught them assert on **where the user ends up**, not
 on the verdict of the function underneath.
+
+---
+
+### I11 · The operator key is required in production, optional elsewhere
+**2026-10-20.** Jaco's call on the `chainEnvSchema` `TODO(human)`.
+`appEnvSchema` is `appEnvObject.superRefine(...)`, checking `NODE_ENV` and
+`OPERATOR_PRIVATE_KEY` together.
+**Why on the merged schema:** the rule spans two blocks — `NODE_ENV` is infra,
+the key is chain — so neither sees both alone, and `.optional()` cannot express
+"optional, except when it isn't".
+**Why at boot rather than in the escrow module:** a missing key in production is
+not a feature being unavailable, it is **refunds silently failing**, found by a
+user who did not get their money back. The alternative defers the error to the
+first refund attempt, which could be weeks.
+**Rules out:** `.optional()` alone; an enum of the two Base chain ids, since a
+local Anvil fork is 31337 and the escrow integration tests need it.
+**Wrinkle:** `superRefine` returns a `ZodEffects`, which has **no `.shape`**.
+`loadEnv` reads `.shape` for its typo check, so the plain object is kept as
+`appEnvObject` and exported as `APP_ENV_KEYS`.

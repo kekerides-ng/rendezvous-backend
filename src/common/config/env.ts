@@ -45,38 +45,71 @@ export const infraEnvSchema = z.object({
 });
 
 /**
- * TODO(human): the chain block of the environment schema.
+ * The chain block (architecture.md §5). Read by the escrow module in step 4.2.
  *
- * These four variables are what the escrow module will read in build step 4.2.
- * Declaring them now, while the config loader is fresh in your head, is cheaper
- * than discovering in step 4.2 that staging boots with no operator key and
- * silently cannot issue refunds.
- *
- * Add to the object below:
- *   CHAIN_ID               - Base Sepolia is 84532, Base mainnet is 8453
- *   CHAIN_RPC_URL          - an https:// endpoint
- *   CHAIN_CONFIRMATIONS    - architecture.md §5 says default 5 on Base
- *   OPERATOR_PRIVATE_KEY   - a 0x-prefixed 32-byte hex string (66 chars total)
- *
- * The interesting decision is OPERATOR_PRIVATE_KEY. It must be REQUIRED in
- * production and ALLOWED TO BE EMPTY in development and test, because nobody
- * running `bun run test` should need a funded key. A plain `.optional()` cannot
- * express that, since the rule depends on NODE_ENV — which lives in the sibling
- * schema above, not in this one.
- *
- * Two ways to express a cross-field rule like that in zod:
- *   - `z.object({...}).superRefine((value, ctx) => ...)` on the MERGED schema,
- *     where both NODE_ENV and the key are visible
- *   - keep it `.optional()` here and let the escrow module refuse to start
- *
- * Pick one and say why in a comment. `appEnvSchema` below merges this block in,
- * so whatever you declare here lands in `Env` with full type inference.
+ * Declared now rather than in 4.2 so a misconfigured deploy dies at boot with
+ * a readable message, instead of discovering months later that staging has no
+ * operator key and has silently been unable to issue refunds.
  */
 export const chainEnvSchema = z.object({
-  // TODO(human): add the four chain variables described above.
+  // Base Sepolia is 84532, Base mainnet is 8453. Not an enum: a local Anvil
+  // fork uses 31337, and refusing to boot against a fork would make the
+  // escrow integration tests impossible to run.
+  CHAIN_ID: z.coerce.number().int().positive().default(84_532),
+
+  CHAIN_RPC_URL: z
+    .string()
+    .min(1)
+    .refine((value) => value.startsWith('https://'), 'must start with https://')
+    .default('https://sepolia.base.org'),
+
+  // architecture.md §5: act on a chain event only after N confirmations.
+  CHAIN_CONFIRMATIONS: z.coerce.number().int().min(1).max(100).default(5),
+
+  // 0x + 64 hex characters. Checked for SHAPE only — a well-formed key that is
+  // not funded is a runtime problem, and we never log or echo this value
+  // (see common/logging/redact.ts).
+  OPERATOR_PRIVATE_KEY: z
+    .string()
+    .regex(/^0x[0-9a-fA-F]{64}$/, 'must be 0x followed by 64 hex characters')
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
 });
 
-export const appEnvSchema = infraEnvSchema.extend(chainEnvSchema.shape);
+/** The plain object, kept so `loadEnv` can still read `.shape` for key names. */
+const appEnvObject = infraEnvSchema.extend(chainEnvSchema.shape);
+
+/**
+ * The operator key is REQUIRED in production and may be empty everywhere else.
+ *
+ * Expressed with `superRefine` on the MERGED schema, because the rule spans two
+ * fields: `NODE_ENV` lives in the infra block and the key lives in the chain
+ * block, so neither schema can see both on its own. A plain `.optional()`
+ * cannot say "optional, except when it isn't".
+ *
+ * Checked here rather than letting the escrow module refuse to start, because
+ * boot is the only moment this is cheap. A key missing in production is not a
+ * feature being unavailable — it is refunds silently failing, discovered by a
+ * user who did not get their money back. Fail-fast config exists for exactly
+ * this, and the alternative defers the error to whenever the first refund is
+ * attempted, which could be weeks.
+ *
+ * NOTE: this returns a ZodEffects, not a ZodObject, so it has no `.shape` —
+ * hence `appEnvObject` above.
+ */
+export const appEnvSchema = appEnvObject.superRefine((value, ctx) => {
+  if (value.NODE_ENV === 'production' && !value.OPERATOR_PRIVATE_KEY) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['OPERATOR_PRIVATE_KEY'],
+      message:
+        'is required in production — without it the escrow operator cannot issue refunds',
+    });
+  }
+});
+
+/** Declared variable names, for the typo check in `loadEnv`. */
+export const APP_ENV_KEYS = Object.keys(appEnvObject.shape);
 
 export type Env = z.infer<typeof appEnvSchema>;
 
@@ -166,7 +199,7 @@ const describeTypo = ({
  */
 export function loadEnv(env: Readonly<Record<string, string | undefined>> = process.env) {
   const result = appEnvSchema.safeParse(env);
-  const declared = Object.keys(appEnvSchema.shape);
+  const declared = APP_ENV_KEYS;
 
   if (!result.success) {
     const issues = result.error.issues.map((issue) => {

@@ -26,40 +26,27 @@ import type { Env } from '../common/config/env';
  * **CORS is the same allowlist as HTTP.** A WebSocket upgrade is not covered by
  * the HTTP CORS config, and the default is to accept any origin.
  *
- * TODO(human): decide how a socket authenticates.
+ * **Authentication: a short-lived ticket, settled in `DECISIONS.md` I22.**
  *
- * The session is an **httpOnly cookie** issued by this backend
- * (architecture.md §4). HTTP requests carry it automatically; a WebSocket does
- * not work the same way, and until this is settled every handler added in
- * steps 3.1 and 5.1 has no idea who is on the other end.
+ * Not the session cookie, and not by choice — HTTP goes through each app's own
+ * Next route handlers (§2), so the session is first-party to the *app's*
+ * origin and the browser will not send it to this one on a WebSocket upgrade.
  *
- * Add a `handleConnection` body that establishes the user, joins
- * `user:<id>`, and disconnects anyone it cannot identify.
+ * It is also the safer option on its own merits: a WebSocket upgrade is **not
+ * subject to CORS**, so a cookie-authenticated socket would be openable by any
+ * site the user happens to visit — CSRF, over a socket.
  *
- * Three ways to do it, and the trade is real:
+ * The shape, to implement in **1.2** once user sessions exist:
+ *   1. the client calls an authenticated HTTP endpoint for a ticket — a
+ *      single-use token, ~30 seconds, held in Redis against the user id
+ *   2. it passes the ticket in `handshake.auth.token`
+ *   3. `handleConnection` redeems it, joins `user:<id>`, and calls
+ *      `client.disconnect(true)` on anything it cannot identify
  *
- *  1. **Read the cookie off the handshake.** `client.handshake.headers.cookie`
- *     is there, because the browser sends cookies on the upgrade request to the
- *     same origin. Nothing new to issue, and it expires exactly when the
- *     session does. But a WebSocket upgrade is **not subject to CORS**, so the
- *     origin check has to be done by hand — otherwise any site the user visits
- *     can open a socket as them. That is CSRF, over a socket.
- *
- *  2. **A short-lived ticket.** The client calls an authenticated HTTP endpoint,
- *     gets a one-time token valid for ~30 seconds, and passes it in
- *     `handshake.auth.token`. Immune to the CSRF problem, because a token has
- *     to be deliberately fetched and cannot be sent by a browser on its own.
- *     Costs a round trip before connecting, and a token store.
- *
- *  3. **Trust the cookie, verify the Origin header.** Option 1 plus an explicit
- *     `handshake.headers.origin` check against the allowlist already on this
- *     class as `allowedOrigins`.
- *
- * Worth knowing before choosing: `handleConnection` runs **after** the socket
- * is already connected, so rejecting means calling `client.disconnect(true)`
- * rather than refusing the handshake. And whatever you pick, the user id must
- * come from the server's own verification — never from something the client
- * sent, like a `userId` in the auth payload.
+ * Two things to keep: `handleConnection` runs **after** the socket connects,
+ * so rejecting means disconnecting rather than refusing the handshake; and the
+ * user id comes from redeeming the ticket server-side, **never** from anything
+ * the client sent.
  */
 @WebSocketGateway({ transports: ['websocket', 'polling'] })
 export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {

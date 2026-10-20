@@ -441,3 +441,54 @@ password rules and the audit row apply identically to an admin created later
 through the console.
 **Rules out:** a seed HTTP route; inserting an admin with raw SQL, which would
 skip the password policy and leave no audit trail.
+
+### I21 · The browser never calls the backend directly; Next route handlers proxy
+**2026-10-20.** Jaco's call. Web and admin each get
+`app/api/[...path]/route.ts`, forwarding server-side to the backend.
+`lib/api/client.ts` in both points at `/api/*`.
+**Why — cookies, not tidiness.** Web on Vercel and the backend on Railway are
+**cross-site**, so a session cookie set by the API origin is a third-party
+cookie. Safari's ITP already blocks those and Chrome is phasing them out:
+login would fail **silently** for a large share of users with nothing in the
+logs. Proxying makes the session first-party to the app's own origin.
+**Side effects:** CORS stops mattering for HTTP, and the backend URL is never
+public.
+**Supersedes:** architecture.md §2's "web and admin talk to the backend over
+HTTP" and `CLAUDE.md` rule 1 in both front-end repos, now updated.
+
+### I22 · The socket authenticates with a ticket, not the session cookie
+**2026-10-20.** Follows directly from I21, and **answers the open
+`TODO(human)`** in `realtime.gateway.ts`.
+**Why the cookie cannot work:** a WebSocket cannot proxy through a Next route
+handler, so Socket.io connects to the backend origin directly — and the
+session cookie is first-party to the *app's* origin, so the browser will not
+send it. The client calls an authenticated endpoint for a ~30-second
+single-use ticket and passes it in `handshake.auth`.
+**It is also the safer option independently:** a WebSocket upgrade is not
+subject to CORS, so a cookie-authenticated socket would be openable by any
+site the user visits — CSRF over a socket.
+**Rules out:** reading `handshake.headers.cookie`; trusting any user id the
+client sends.
+
+### I23 · Every step ships a UI you can click
+**2026-10-20.** Jaco: "anything we do has to work and be connected end to end…
+all I want to do is go to the UI and test."
+**Supersedes P11**, which said admin endpoints ship with each module while the
+screens lag. They no longer lag.
+**Consequence:** build-plan **0.4 moves ahead of further backend modules** —
+1.1's endpoints exist with no way to reach them. Each step costs more; in
+exchange nothing is ever "done" in a state Jaco cannot try.
+
+### I24 · The OpenAPI spec must document error responses, or clients cannot handle them
+**2026-10-20.** `common/http/api-error.dto.ts` declares the envelope for
+Swagger, and `@ApiErrors(400, 401, …)` attaches it per endpoint.
+**Found by lint, in the admin app.** `errors.ts` declared the envelope in zod
+for the *runtime*, but no `@ApiResponse` named it — so `openapi-typescript`
+generated clients whose `error` was `never`. Every `if (error)` in a hook was
+dead code the compiler believed could never run, and a failed request would
+have fallen through to "success with no data".
+**Rule 2 says the spec is complete.** A spec documenting only the happy path is
+not, and the gap is invisible until something tries to consume it.
+**Rules out:** declaring an error shape only in zod; adding `@ApiResponse` per
+status by hand, since the one that gets forgotten is the one a client cannot
+then handle.

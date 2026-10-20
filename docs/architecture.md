@@ -26,6 +26,12 @@ A Nigeria-first companionship app. Verified adults book each other's time for di
 
 **No shared code between repos.** They connect only through:
 1. **The backend's OpenAPI spec** at `/docs-json`. Web and admin generate their own typed clients from it (`bun run api:gen`).
+
+   **The browser never calls the backend directly over HTTP.** Web and admin each proxy through their own Next.js route handlers (`app/api/[...path]/route.ts`), which forward to the backend server-side.
+
+   The reason is cookies, not tidiness. Web on Vercel and the backend on Railway are **cross-site**, so a session cookie set by the API origin is a third-party cookie — already blocked by Safari's ITP and being phased out by Chrome. Login would fail silently for a large share of Nigerian users, with nothing in the logs. Proxying makes the session first-party to the app's own origin.
+
+   Two consequences: CORS stops mattering for HTTP, and the backend URL is never public. **Socket.io is the exception** — a WebSocket cannot proxy through a route handler, so it connects to the backend directly and therefore cannot rely on that cookie (see §7).
 2. **`GET /chain/config`** on the backend, which returns chain id, USDC address, escrow address and ABI. The web app reads it; admin never signs transactions.
    - The backend gets these values from `companion-contracts`: each deploy writes `deployments/<network>.json` (chainId, escrow, usdc, deployBlock, abi) and is tagged (e.g. `v1.0.0-sepolia`). The backend pulls a tag with `bun run chain:sync <tag>`.
 3. **Socket.io** on the backend, used by web for chat, offers, booking updates and live location.
@@ -135,6 +141,7 @@ offer accepted ─► PENDING_FUNDING ──Funded (N conf)──► CONFIRMED �
 
 ## 7. Realtime and safety in a PWA
 - Socket.io for chat, offers, typing, booking updates. Redis adapter, so it can scale to more instances.
+- **The socket authenticates with a short-lived ticket, not the session cookie.** HTTP goes through the app's own Next route handlers (§2), so the session cookie is first-party to the web app and the browser will not send it to the backend origin on a WebSocket upgrade. The client calls an authenticated endpoint for a ~30-second single-use ticket and passes it in the handshake. This also sidesteps the fact that a WebSocket upgrade is not subject to CORS, so a cookie-based socket would be open to any site the user visits.
 - **Live location only while the session page is open** (a PWA has no background GPS). The session screen uses the Wake Lock API and tells the user to keep it open.
 - SOS sends an SMS to trusted contacts (Termii) and alerts the admin queue. It does not depend on push.
 - Web Push needs the PWA installed to the home screen on iOS (16.4+). The web app prompts for install. Anything critical also goes by SMS.

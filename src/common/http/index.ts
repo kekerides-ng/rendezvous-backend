@@ -6,3 +6,4 @@ export * from './health.controller';
 export * from './health.module';
 export * from './shutdown';
 export * from './zod-validation.pipe';
+export * from './api-error.dto';

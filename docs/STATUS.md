@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-20 (1.1 done — admin auth).** Master copy lives in `companion-backend/docs/STATUS.md`
+**Last updated: 2026-10-20 (0.4 done — admin console, end to end).** Master copy lives in `companion-backend/docs/STATUS.md`
 and is byte-identical in all four repos. Rewritten after each piece of work, not appended.
 
 ---
@@ -43,7 +43,7 @@ with no modules. That is the whole state in one sentence.**
 |---|---|
 | `companion-web` | ~40 routes covering every supplied design frame. All data comes from `src/lib/mock/`. 385 tests. Build-plan **0.3 done**. |
 | `companion-backend` | **0.1, 0.2 and 1.1 done** — scaffold, config, logging, health, Swagger, Drizzle, the common pieces (column helpers, event bus, BullMQ, rate limiter, Socket.io + Redis adapter), and the **admin module**: `admin_users`/`admin_sessions`/`audit_log`/`settings`, two-step login with TOTP, `AdminGuard`, audit trail. 80 tests. Migrations applied and the flow walked end to end. |
-| `companion-admin` | Documentation only. Repo initialised, nothing built. |
+| `companion-admin` | **0.4 done** — Next 16 on 3001, TanStack Query, `/api/*` proxy to the backend, and a **working sign-in**: password → TOTP enrolment → session → dashboard → sign out. Verified end to end. |
 | `companion-contracts` | Documentation only. Repo initialised, nothing built. |
 
 ### Current phase
@@ -53,10 +53,10 @@ every later module. 0.4, 0.5 and 0.6 remain open from Phase A but block nothing.
 
 ### The next three actions
 
-1. **1.2 user auth + wallet** — **the first real wiring.** The backend verifies
-   the Privy token and issues its own session cookie; the web side swaps
-   `lib/mock/auth.ts` for the generated client. **Blocked until Privy
-   credentials exist** — see `docs/SERVICES.md`.
+1. **1.2 user auth + wallet** — the web app's turn: the backend verifies the
+   Privy token and issues its own session cookie, and `lib/mock/auth.ts` is
+   deleted. The proxy and the typed client are already in place. **Blocked
+   until Privy credentials exist** — see `docs/SERVICES.md`.
 2. **0.5 contracts** — `forge init`, pinned OpenZeppelin, `deployments/`
    format. Before 4.1 because `Escrow.sol` must include `topUp()` from the
    start; a contract cannot gain a function after deployment. No external
@@ -112,42 +112,58 @@ bun run typecheck && bun run lint && bun run test && bun run build
 
 #### Signing in as an admin
 
-There is **no admin UI yet** (build-plan 0.4). The endpoints exist and are
-usable with `curl`. Create the first admin from the command line — admin
-creation is behind `AdminGuard`, so there is nobody to authenticate as until
-one exists:
+**In a browser: `bun run dev` in `admin/`, then open `http://localhost:3001/login`.**
+
+First create an admin from the command line — creation is behind `AdminGuard`,
+so there is nobody to authenticate as until one exists:
 
 ```bash
 bun run admin:create ada@rendezvous.ng 'correct horse battery staple' admin
 ```
 
-Then sign in, which is **two requests**:
+Then sign in at `http://localhost:3001/login`: email and password, scan the key
+it shows with an authenticator app, enter the 6-digit code. That lands you on
+the dashboard with a working sign-out.
+
+The same thing with `curl`, against the **admin app's** origin — note `/api/`,
+because the browser never calls the backend directly (architecture.md §2):
 
 ```bash
 # 1. Password. Returns a challenge and, on first sign-in, an otpauth:// URI.
-curl -X POST http://localhost:4000/admin/auth/login \
+curl -X POST http://localhost:3001/api/admin/auth/login \
   -H 'content-type: application/json' \
   -d '{"email":"ada@rendezvous.ng","password":"correct horse battery staple"}'
 
 # Scan the otpauth:// URI with any authenticator app, then:
 
 # 2. The 6-digit code. THIS is what sets the session cookie.
-curl -X POST http://localhost:4000/admin/auth/totp \
+curl -X POST http://localhost:3001/api/admin/auth/totp \
   -H 'content-type: application/json' -c cookies.txt \
   -d '{"challenge":"<from step 1>","code":"123456"}'
 
 # Now authenticated.
-curl http://localhost:4000/admin/auth/me -b cookies.txt
-curl -X POST http://localhost:4000/admin/auth/logout -b cookies.txt
+curl http://localhost:3001/api/admin/auth/me -b cookies.txt
+curl -X POST http://localhost:3001/api/admin/auth/logout -b cookies.txt
 ```
 
 Note the routes are **`/admin/*`, not `/v1/admin/*`** — admin is excluded from
 the version prefix (DECISIONS I18). Swagger lists them at
 `http://localhost:4000/docs` under the `admin` tag.
 
-### `companion-admin` / `companion-contracts`
+### `companion-admin`
 
-Nothing to run yet. See build-plan 0.4 and 0.5.
+```bash
+bun install
+bun run dev              # port 3001
+bun run typecheck && bun run lint && bun run build
+```
+
+Needs the backend running on 4000. `API_URL` in `.env` points at it and is
+**server-side only** — the browser never sees it.
+
+### `companion-contracts`
+
+Nothing to run yet. See build-plan 0.5.
 
 ---
 
@@ -204,8 +220,9 @@ Two are open, which breaks the one-at-a-time rule:
 - **No `lib/api` usage yet.** `client.ts` and a placeholder `schema.d.ts` exist
   so the seam compiles.
 - **Privy credentials are needed before 1.2 can start** — see `docs/SERVICES.md`.
-- **No admin screens.** `DECISIONS.md` P11: endpoints ship with each module,
-  the UI lags. The admin app itself is build-plan 0.4.
+- **The admin console has one screen.** Sign-in works; the queues get built
+  with the modules that feed them (`DECISIONS.md` I23 — every step now ships a
+  UI you can click).
 - **No admin-user management endpoints.** `AdminService.createAdmin` exists;
   admins are seeded by hand until 7.1.
 - **The Socket.io gateway does not authenticate yet** — that is the open

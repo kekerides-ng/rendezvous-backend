@@ -12,6 +12,7 @@ import {
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
+import { ApiErrors } from '../../common/http/api-error.dto';
 import { ZodValidationPipe } from '../../common/http/zod-validation.pipe';
 import { ADMIN_SESSION_COOKIE, AdminGuard, AdminPublic, type AdminRequest } from './admin.guard';
 import { AdminService, type RequestContext } from './admin.service';
@@ -54,6 +55,7 @@ export class AdminController {
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, type: LoginResponseDto })
+  @ApiErrors(400, 401)
   async login(
     @Body(new ZodValidationPipe(loginSchema)) body: LoginInput,
     @Req() request: AdminRequest,
@@ -80,6 +82,7 @@ export class AdminController {
   })
   @ApiBody({ type: TotpDto })
   @ApiResponse({ status: 200, type: AdminProfileDto })
+  @ApiErrors(400, 401)
   async totp(
     @Body(new ZodValidationPipe(totpSchema)) body: TotpInput,
     @Req() request: AdminRequest,
@@ -108,6 +111,7 @@ export class AdminController {
   @Post('logout')
   @HttpCode(204)
   @ApiOperation({ summary: 'Revoke the current session' })
+  @ApiErrors(401)
   async logout(
     @Req() request: AdminRequest,
     @Res({ passthrough: true }) response: Response,
@@ -120,6 +124,7 @@ export class AdminController {
   @Get('me')
   @ApiOperation({ summary: 'Who the current session belongs to' })
   @ApiResponse({ status: 200, type: AdminProfileDto })
+  @ApiErrors(401)
   me(@Req() request: AdminRequest): AdminProfileDto {
     const admin = request.admin;
     // The guard throws before reaching here, so this is unreachable — but an

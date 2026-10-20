@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-20 (admin login cookie/cache fix; live acceptance pending).**
+**Last updated: 2026-10-20 (admin aligned with the web brand; live acceptance pending).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -26,8 +26,17 @@ live database/browser acceptance pass below.**
 |---|---|
 | `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. New `/admin/users` list, phone reveal, suspend and reinstate endpoints. 141 tests pass, including 11 users HTTP-contract checks. Typecheck, lint and build pass. No schema migration needed for this slice. |
 | `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Everything after sign-in is mock. API types regenerated; typecheck/lint and 393 tests pass. |
-| `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate. 34 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
+| `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`, now using the web's Rendezvous brand. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate. 34 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
 | `contracts` | Documentation only. 0.5 still open. |
+
+### Shared Rendezvous identity
+
+The admin now follows the web's original icon, magenta palette, Plus Jakarta
+Sans, warm page gradient, pill buttons and rounded surfaces. Login, sidebar,
+dashboard and users table use the same signature; the Admin label and console
+layout identify the operational surface. Brand asset hashes match the web
+original. Typecheck, lint and all 34 admin tests pass after this styling change.
+No browser was available to the automation tool for a live visual review.
 
 ### What the new users slice does
 

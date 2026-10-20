@@ -24,6 +24,12 @@ A Nigeria-first companionship app. Verified adults book each other's time for di
 | `companion-web` | User PWA | Next.js (App Router) · Bun · Tailwind · TanStack Query · generated API client · embedded wallet SDK + wagmi/viem · socket.io-client · Mapbox (static images now, GL JS when live location lands) · hand-written service worker | Vercel (or same host as backend) |
 | `companion-admin` | Admin console | Next.js (App Router) · Bun · Tailwind · TanStack Table · generated API client | Vercel, on `admin.` subdomain, behind Cloudflare Access later |
 
+**One visual identity.** Web and admin use Rendezvous's original artwork,
+magenta palette, Plus Jakarta Sans and warm rounded surfaces. The console is
+identified by its Admin label and desktop navigation, not a separate brand.
+Brand assets/tokens are mirrored explicitly from the web reference; app code
+remains independent.
+
 **No shared code between repos.** They connect only through:
 1. **The backend's OpenAPI spec** at `/docs-json`. Web and admin generate their own typed clients from it (`bun run api:gen`).
 

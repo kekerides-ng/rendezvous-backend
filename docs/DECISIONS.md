@@ -587,3 +587,20 @@ TOTP success now cancels any old identity request and seeds the returned admin
 profile before replacing the login route with the dashboard. Failed/empty login
 responses do not navigate. Regression tests cover the cookie path, logout path,
 multiple cookies, stale signed-out state and successful/failed TOTP navigation.
+
+
+### D10 · The admin uses the same Rendezvous identity as the web
+**2026-10-20.** Jaco pointed out that the blue admin theme looked like another
+platform. The earlier distinction existed in admin's CSS commentary, but it was
+the wrong product choice: console identity comes from its Admin label, navigation
+and tasks, not a second brand.
+
+The admin now follows web's original artwork, magenta palette, Plus Jakarta Sans,
+warm blush/cream background, pill actions and rounded surfaces. It retains a
+desktop/tablet console layout. The app icon was copied byte-for-byte from
+`web/public/brand/app-icon.png`; it is not redrawn. Components and CSS remain
+owned by their respective repos, with no cross-repo runtime imports. The web
+brand artwork and tokens are the reference when updating either surface.
+
+Supersedes the old admin-only blue-theme rationale. Destructive actions retain
+semantic danger styling so their consequences remain clear within the brand.

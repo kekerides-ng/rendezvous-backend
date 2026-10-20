@@ -4,9 +4,13 @@ import { CONFIG, ConfigModule } from './common/config';
 import { type Env, loadEnv } from './common/config/env';
 import { CorrelationMiddleware } from './common/correlation';
 import { DbModule } from './common/db';
+import { EventsModule } from './common/events';
 import { HealthModule } from './common/http/health.module';
 import { AppLoggerModule } from './common/logging';
+import { RateLimitModule } from './common/rate-limit';
 import { RedisModule } from './common/redis';
+import { JobsModule } from './jobs';
+import { RealtimeModule } from './realtime';
 
 /**
  * Validated at import time, because the `imports` array below needs concrete
@@ -35,6 +39,16 @@ const { env } = loadEnv();
       logger: env.NODE_ENV === 'development' && env.LOG_LEVEL === 'trace',
     }),
     RedisModule.forRoot({ url: env.REDIS_URL }),
+
+    // Step 0.2. Each is global, so a feature module gets them by existing
+    // rather than by importing — which also means no module can forget one.
+    EventsModule,
+    RateLimitModule,
+    // Its own Redis connection: BullMQ's blocking reads need
+    // `maxRetriesPerRequest: null`, which would break every ordinary command.
+    JobsModule.forRoot({ url: env.REDIS_URL }),
+    RealtimeModule,
+
     HealthModule,
     // Feature modules land here as the build plan progresses (architecture.md §3).
   ],

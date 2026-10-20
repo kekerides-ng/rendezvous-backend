@@ -346,3 +346,45 @@ from I11 disappears and `APP_ENV_KEYS` is gone.
 **Rules out:** a cross-field rule in `loadEnv`; any module reading
 `OPERATOR_PRIVATE_KEY` directly instead of through `requireOperatorKey`, which
 is where the error message explaining *what breaks* lives.
+
+### I13 · A long-lived Redis connection retries forever; a request-path one fails fast
+**2026-10-20, build-plan 0.2.** Found by booting with Redis down.
+`ioredis`'s `duplicate()` **inherits the parent's options**, and the Socket.io
+Redis adapter duplicates the shared client — so it inherited
+`enableOfflineQueue: false` and `maxRetriesPerRequest: 2`, which are exactly
+the settings `common/redis` chose to keep a Redis blip from taking the API
+down. It killed the process in two layers: `createAdapter` SUBSCRIBEs
+immediately and threw synchronously; with the queue on, the queued commands
+were flushed as unhandled rejections after two attempts.
+**The rule:** the shared client fails fast so a readiness probe reports unready
+rather than hanging. The adapter's pub/sub and BullMQ's connection override
+both options, because dropping a broadcast or a job when Redis blinks is worse
+than buffering it.
+**Rules out:** sharing one Redis client across request-path and long-lived
+uses, and `duplicate()` without an explicit options override.
+**Note:** invisible to `tsc` and to every unit test. Only `node dist/main.js`
+with the infrastructure down surfaced it — which is also the state a container
+is in for the first seconds of every deploy.
+
+### I14 · The rate limiter is hand-written, not `@nestjs/throttler`
+**2026-10-20.** `common/rate-limit`, a sliding window in one Lua script.
+**Why:** throttler applies one policy per route, and this product needs
+per-action budgets with different windows and different **keys** — six OTP
+sends per phone number per hour is not the same shape as thirty messages per
+conversation per minute. Its Redis storage is also a third-party package on
+the critical path of login.
+**Sliding, not fixed:** a fixed window lets someone spend the whole budget at
+11:59:59 and again at 12:00:00 — double the limit across two seconds, which on
+OTP sends is a bill.
+**Atomic:** read-then-write from the app is a race that two concurrent requests
+both win.
+**Keyed by subject, not IP:** rate limiting OTP by IP punishes everyone behind
+one Nigerian carrier NAT while costing an attacker with proxies nothing.
+
+### I15 · No cross-module foreign keys
+**2026-10-20.** Within a module, real foreign keys. Across modules,
+`reference()` and a call to the other module's service.
+**Why:** architecture.md §3 wants modules splittable into services, and a key
+from `booking.bookings` to `auth.users` is a database-level coupling that
+cannot survive that split. It also enforces at the wrong layer — "this user
+exists" is a question only the auth module can answer.

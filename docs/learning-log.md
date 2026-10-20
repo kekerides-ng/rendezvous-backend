@@ -54,3 +54,73 @@ runs after every imported module has already read `process.env`.
 **Ports are offset** — Postgres 5433, Redis 6380, MinIO 9002/9003 — because the
 superseded project holds the standard ones. Connecting to 5432 silently gets
 you the wrong database.
+
+---
+
+## 0.2 — the common pieces every module will stand on
+
+Column helpers, the event bus, BullMQ queues, a rate limiter and the Socket.io
+gateway. Nothing user-facing; everything after this depends on it.
+
+**The column helpers are the part that would have been expensive to get wrong**,
+because eleven modules inherit them at once.
+
+- **`usdc` is a `bigint` with a driver mapping.** Postgres returns `bigint` as a
+  **string**, deliberately, so the driver does not lose precision — and without
+  `fromDriver` a repo gets `"31500000"` and the first `+` in any fee
+  calculation **concatenates instead of adding**. The test proves the round
+  trip and shows a value a JS number corrupts.
+- **`geographyPoint` is `geography`, not `geometry`.** Geometry does planar
+  maths, so a distance query would be in degrees and wrong by a factor that
+  grows with latitude. Geography returns metres, which is what discovery needs.
+  It stores **longitude first**, PostGIS's order and the reverse of how people
+  say it — backwards puts Lagos in the Indian Ocean, so the type names its
+  fields rather than taking a tuple.
+- **`id` is a v7 UUID.** Time-ordered, so inserts stay at the right edge of the
+  index instead of scattering across every page like v4.
+- **No cross-module foreign keys.** §3 wants modules splittable into services,
+  and a key from `booking.bookings` to `auth.users` is a database-level
+  coupling that cannot survive that.
+
+**The rate limiter is hand-written rather than `@nestjs/throttler`.** Throttler
+applies one policy per route; this product needs per-action budgets with
+different windows and different *keys* — six OTP sends per phone number per
+hour is not the same shape as thirty messages per conversation per minute. It
+is a **sliding** window, because a fixed one lets someone spend the whole
+budget at 11:59:59 and again at 12:00:00. The whole check is one Lua script so
+it is atomic; read-then-write from the app is a race both requests win. And
+the subject is the phone number, **not the IP** — rate limiting OTP by IP
+punishes everyone behind one Nigerian carrier NAT while costing an attacker
+with proxies nothing.
+
+**The thing most likely to break — and it did, twice, in one bug.**
+
+`ioredis`'s `duplicate()` **inherits the parent's options**, and the Socket.io
+Redis adapter duplicates the shared client. Booting with Redis down killed the
+process in two layers:
+
+1. `enableOfflineQueue: false` → `createAdapter` issues a SUBSCRIBE
+   immediately, which throws **synchronously**.
+2. With the queue turned on, `maxRetriesPerRequest: 2` flushes the queued
+   commands as **unhandled rejections** after two attempts. Same crash, one
+   step later.
+
+Both are settings `common/redis` chose deliberately *for the shared client*,
+reintroduced by the duplicate. The general rule that came out of it:
+
+> **A long-lived connection retries forever. A request-path connection fails
+> fast.**
+
+The shared client must fail fast so a readiness probe reports unready rather
+than hanging. The adapter's pub/sub and BullMQ's connection must not, because
+dropping a broadcast or a job because Redis blinked is worse than buffering it.
+
+**None of this was visible in tests or in `tsc`.** It only appeared by running
+`node dist/main.js` with the infrastructure down — which is also the state a
+container is in for the first few seconds of every deploy. The app now answers
+liveness `200`, readiness `503`, and stays alive.
+
+**Deliberately not done.** Docker was not running, so the migrations and the
+PostGIS types have **not** been exercised against a real Postgres. The column
+helpers are tested at the driver-mapping level only. First thing to check when
+`docker compose up -d` is available.

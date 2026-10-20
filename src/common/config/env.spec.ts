@@ -83,9 +83,7 @@ describe('the chain block', () => {
   });
 
   it('refuses an rpc url that is not https', () => {
-    expect(() => loadEnv({ ...valid, CHAIN_RPC_URL: 'http://sepolia.base.org' })).toThrow(
-      /https/,
-    );
+    expect(() => loadEnv({ ...valid, CHAIN_RPC_URL: 'http://sepolia.base.org' })).toThrow(/https/);
   });
 
   it('refuses a malformed operator key', () => {

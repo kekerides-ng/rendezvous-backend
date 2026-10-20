@@ -16,8 +16,12 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 
+import type Redis from 'ioredis';
+
 import { AppModule } from './app.module';
 import { CONFIG, CONFIG_WARNINGS } from './common/config';
+import { REDIS } from './common/redis';
+import { RedisIoAdapter } from './realtime';
 import type { Env } from './common/config/env';
 import { AppExceptionFilter } from './common/http/exception.filter';
 import type { HealthService } from './common/http/health';
@@ -56,6 +60,16 @@ async function bootstrap(): Promise<void> {
     credentials: true,
     exposedHeaders: ['x-request-id'],
   });
+
+  // The Redis adapter, so Socket.io works across more than one instance
+  // (architecture.md §7). Installed BEFORE `listen`, because the adapter has
+  // to be in place when the HTTP server starts accepting upgrades.
+  //
+  // CORS is set here too: a WebSocket upgrade is NOT covered by
+  // `app.enableCors` above, and the default is to accept any origin.
+  const socketAdapter = new RedisIoAdapter(app, app.get<Redis>(REDIS));
+  socketAdapter.connect();
+  app.useWebSocketAdapter(socketAdapter);
 
   // Every route is versioned under /v1 except health and the docs, so the
   // generated clients in web and admin have a stable prefix to pin to.

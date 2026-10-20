@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-20 (0.1 closed).** Master copy lives in `companion-backend/docs/STATUS.md`
+**Last updated: 2026-10-20 (0.2 done).** Master copy lives in `companion-backend/docs/STATUS.md`
 and is byte-identical in all four repos. Rewritten after each piece of work, not appended.
 
 ---
@@ -42,30 +42,31 @@ with no modules. That is the whole state in one sentence.**
 | Repo | State |
 |---|---|
 | `companion-web` | ~40 routes covering every supplied design frame. All data comes from `src/lib/mock/`. 385 tests. Build-plan **0.3 done**. |
-| `companion-backend` | Build-plan **0.1 done** — Nest scaffold, fail-fast zod config (including the chain block), pino logging, exception filter, health, Swagger, Drizzle, docker-compose. 47 tests. **No feature modules.** |
+| `companion-backend` | Build-plan **0.1 and 0.2 done** — scaffold, fail-fast zod config, pino, health, Swagger, Drizzle, plus the common pieces: column helpers (`id`, `timestamps`, `usdc`, `geographyPoint`), event bus, BullMQ queues, Redis rate limiter, Socket.io gateway with the Redis adapter. 64 tests. **No feature modules yet.** |
 | `companion-admin` | Documentation only. Repo initialised, nothing built. |
 | `companion-contracts` | Documentation only. Repo initialised, nothing built. |
 
 ### Current phase
 
-**Phase A — finishing the foundation.** Nothing in Phase B can start until
-build-plan **0.2** lands, because every module needs its column helpers and
-event bus.
+**Phase A — finishing the foundation.** 0.2 is done, so **Phase B is unblocked**:
+feature modules can now be built.
 
 ### The next three actions
 
-1. **0.2 backend** — common pieces: DB module + column helpers (`id`,
-   `timestamps`, `usdc` bigint, `geographyPoint`), `@nestjs/event-emitter`,
-   BullMQ, Socket.io gateway skeleton, rate limiter. **This blocks everything.**
-   *Next up — nothing is in the way of starting it.*
-2. **0.5 contracts** — `forge init`, pinned OpenZeppelin, `deployments/`
+1. **0.5 contracts** — `forge init`, pinned OpenZeppelin, `deployments/`
    format. Before 4.1 because `Escrow.sol` must include `topUp()` from the
    start; a contract cannot gain a function after deployment.
-3. **0.4 admin** then **0.6 CI** — admin scaffold and login shell, then
+2. **0.4 admin** then **0.6 CI** — admin scaffold and login shell, then
    typecheck/lint/test CI in all four repos.
+3. **1.1 admin auth** — the first feature module, and the first thing to use
+   0.2's pieces. `AdminGuard` and `audit_log` are infrastructure every later
+   module writes to.
 
-**0.1 is closed.** The config now refuses to boot in production without
-`OPERATOR_PRIVATE_KEY`, and the backend learning log has its entry.
+Phase B can also start ahead of 0.4/0.5 if preferred: nothing in 1.1 or 1.2
+depends on the admin app or the contracts repo existing.
+
+**Nothing is blocked.** `OPERATOR_PRIVATE_KEY` is enforced by the escrow module
+at construction (`requireOperatorKey`), not at boot — see DECISIONS I12.
 
 ---
 
@@ -136,8 +137,12 @@ Loading, empty and error states already exist on every screen — `Skeleton`,
 
 ## Open `TODO(human)` — Jaco's, not yours
 
-One is open, which is the correct number:
+Two are open, which breaks the one-at-a-time rule:
 
+- `backend/src/realtime/realtime.gateway.ts` — **how a socket authenticates.**
+  The session is an httpOnly cookie and a WebSocket upgrade is not subject to
+  CORS, so this is a security decision, not a plumbing one. Every realtime
+  handler in steps 3.1 and 5.1 depends on it.
 - `web/src/components/ui/pill.tsx` — whether pill tones should be semantic
   (`info`/`trust`) rather than presentational (`dark`/`light`). Three later
   components (`AssuranceRow`, `Notice`, `SheetOption`) all went semantic, so
@@ -162,6 +167,12 @@ One is open, which is the correct number:
   the real flow never has. They become socket events.
 - **No `lib/api` usage yet.** `client.ts` and a placeholder `schema.d.ts` exist
   so the seam compiles.
+- **The migrations and PostGIS types have never run against a real Postgres.**
+  Docker was not running when 0.2 was built, so the column helpers are tested
+  at the driver-mapping level only. Run `docker compose up -d` and
+  `bun run db:generate` as the first act of the next backend step.
+- **The Socket.io gateway does not authenticate yet** — that is the open
+  `TODO(human)`.
 
 ---
 

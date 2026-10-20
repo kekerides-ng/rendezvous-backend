@@ -14,7 +14,7 @@ Mark done with `[x]`.
 
 ## Phase 0 — Foundations
 - [x] **0.1 backend:** `nest new` with Bun, Drizzle, docker-compose (Postgres+PostGIS, Redis, MinIO), config (zod env), logger with request id, error filter, zod validation, Swagger at `/docs`, health, Vitest. Folder layout from CLAUDE.md.
-- [ ] **0.2 backend:** common pieces: DB module + column helpers (`id`, `timestamps`, `usdc` bigint, `geographyPoint`), event emitter, BullMQ, Socket.io gateway skeleton, rate limiter.
+- [x] **0.2 backend:** common pieces: DB module + column helpers (`id`, `timestamps`, `usdc` bigint, `geographyPoint`), event emitter, BullMQ, Socket.io gateway skeleton, rate limiter.
 - [x] **0.3 web:** `create-next-app` with Bun, Tailwind, TanStack Query, `api:gen` script, PWA manifest + service worker (Serwist), app shell with tabs.
 - [ ] **0.4 admin:** `create-next-app` with Bun, Tailwind, `api:gen` script, sidebar layout, login page shell.
 - [ ] **0.5 contracts:** `forge init`, OpenZeppelin, folder layout, `deployments/` format, CI with `forge test` + `forge fmt --check`.

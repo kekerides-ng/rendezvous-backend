@@ -225,7 +225,7 @@ export function requireOperatorKey(env: Pick<Env, 'OPERATOR_PRIVATE_KEY' | 'NODE
       '  ✗ OPERATOR_PRIVATE_KEY: not set',
       '',
       'It signs refunds and keeper releases. Without it a cancelled booking',
-      'cannot be refunded, which fails silently from the user\'s side.',
+      "cannot be refunded, which fails silently from the user's side.",
     ].join('\n'),
     ['OPERATOR_PRIVATE_KEY: not set'],
   );

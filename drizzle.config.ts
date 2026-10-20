@@ -11,12 +11,15 @@ import { defineConfig } from 'drizzle-kit';
  * Without it, drizzle-kit only introspects `public`, decides the module schemas
  * are undeclared, and happily writes a migration that drops them.
  */
+export const databaseUrl =
+  process.env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5433/companion';
+
 export default defineConfig({
   dialect: 'postgresql',
   schema: './src/modules/**/*.schema.ts',
   out: './drizzle',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5433/companion',
+    url: databaseUrl,
   },
   // Grows as modules land (architecture.md §3). Every module schema must be
   // listed, or drizzle-kit decides it is undeclared and writes a DROP.

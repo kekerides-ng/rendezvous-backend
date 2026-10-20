@@ -18,7 +18,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "bun run scripts/migrate-database.ts",
+    "db:check": "bun run scripts/check-database.ts",
     "db:studio": "drizzle-kit studio",
     "api:export": "bun run build && node scripts/export-openapi.mjs",
     "admin:create": "bun run scripts/create-admin.ts"

@@ -310,3 +310,19 @@ Questions to try while reviewing:
 2. What happens if the audit insert fails after the user row was updated?
 3. If sign-in takes the row lock first, what happens to its session when the
    waiting suspension transaction runs next?
+
+
+## Follow-up — database startup failures need their real error codes
+
+Admin creation printed a Drizzle query wrapper, while drizzle-kit's migration
+spinner exited without a reason. Neither distinguished an unavailable database
+from rejected credentials or missing tables. Added a read-only `db:check` command
+and a migration runner using Drizzle's runtime migrator, the same migration files
+and default history table. CLI errors unwrap nested causes/aggregate errors and
+print a driver code plus a fixed hint, never SQL parameters or credentials.
+
+Typecheck, lint and 141 tests pass, including four diagnostic tests. Running the
+new commands here produces a readable connection-refused error, but sandbox
+network access still prevents diagnosing the user's database. The Compose name
+edit belongs to the user and was left untouched. No volume was reset and no
+applied migration was edited.

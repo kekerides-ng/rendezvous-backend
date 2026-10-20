@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-20 (1.2 admin implementation; live acceptance pending).**
+**Last updated: 2026-10-20 (admin startup database diagnostics; live acceptance pending).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -24,7 +24,7 @@ live database/browser acceptance pass below.**
 
 | Repo | Current state |
 |---|---|
-| `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. New `/admin/users` list, phone reveal, suspend and reinstate endpoints. 137 tests pass, including 11 users HTTP-contract checks. Typecheck, lint and build pass. No schema migration needed for this slice. |
+| `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. New `/admin/users` list, phone reveal, suspend and reinstate endpoints. 141 tests pass, including 11 users HTTP-contract checks. Typecheck, lint and build pass. No schema migration needed for this slice. |
 | `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Everything after sign-in is mock. API types regenerated; typecheck/lint and 393 tests pass. |
 | `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate. 27 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
 | `contracts` | Documentation only. 0.5 still open. |
@@ -40,7 +40,7 @@ live database/browser acceptance pass below.**
 
 ### Verification completed and limits
 
-- Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**137 passed**), `bun run build`.
+- Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**141 passed**), `bun run build`.
 - Admin: typecheck, lint, tests (**27 passed**); these include proxy forwarding, filters, confirmations, role visibility, reveals and logout cleanup.
 - Web: typecheck, lint, tests (**393 passed**). Both API schemas were regenerated from the real controller metadata.
 - Backend HTTP tests run the real Nest/Express middleware, cookie parsing, guards, validation and route prefix rules in-process without binding a TCP port. Repository tests exercise Drizzle's real SQL/transaction driver with a fake connection, including audit-failure rollback.
@@ -113,6 +113,22 @@ on first use, then enter its TOTP code. The dashboard links to Users.
 Admin endpoints are `/admin/*`, **not** `/v1/admin/*`. The browser calls them
 through the admin app's `/api/admin/*` proxy. Admin staff account management
 remains a later step; `/users` is for application users.
+
+### If admin creation or migrations fail
+
+From `backend/`, run `bun run db:check` for a read-only connection/table check,
+then `bun run db:migrate`. Migration and admin-creation failures now report the
+underlying Postgres/network error code without printing SQL parameters or
+credentials. The migration command uses Drizzle's runtime migrator with the same
+SQL files and default `drizzle.__drizzle_migrations` history as drizzle-kit.
+
+`ECONNREFUSED` means the endpoint is not accepting a connection; inspect
+`docker compose ps`. `28P01` means the database rejected the password; check
+DATABASE_URL against the credentials used to initialize the existing volume.
+The Compose project name has a local user edit from `companion` to `rendezvous`,
+which can select a different volume. Do not delete/reset volumes to diagnose it.
+The user's underlying database failure is not yet confirmed; their CLI output
+is needed because this workspace cannot reach Postgres.
 
 ### Generate API types without a running backend
 

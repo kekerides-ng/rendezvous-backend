@@ -6,6 +6,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { AdminRepo } from '../src/modules/admin/admin.repo';
 import { AdminService } from '../src/modules/admin/admin.service';
+import { databaseError } from './database-error';
 import { checkPassword } from '../src/modules/admin/domain/credentials';
 
 /**
@@ -80,6 +81,6 @@ async function main(): Promise<void> {
 // means a failure exits non-zero with a readable message rather than an
 // unhandled rejection trace, which matters for a command run in a deploy shell.
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(`Admin creation failed: ${databaseError(error)}`);
   process.exit(1);
 });

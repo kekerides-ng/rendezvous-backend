@@ -21,7 +21,7 @@ Mark done with `[x]`.
 - [ ] **0.6 CI** in each app repo: typecheck, lint, test.
 
 ## Phase 1 — Identity
-- [ ] **1.1 Admin auth:** backend admin module (email + password + TOTP, roles, audit log) → admin login, 2FA setup, admin users page. *Built first so every later slice has its admin side.*
+- [x] **1.1 Admin auth:** backend admin module (email + password + TOTP, roles, audit log) → admin login, 2FA setup, admin users page. *Built first so every later slice has its admin side.*
 - [ ] **1.2 User auth + wallet:** backend auth module (verify embedded-wallet provider token, link wallet, session cookie) → web sign-in (email/phone or connect wallet) → admin users list + suspend.
 - [ ] **1.3 KYC:** backend kyc module (Smile ID web + webhook, 18+ check) → web verify flow → admin KYC review queue.
 

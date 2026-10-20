@@ -11,6 +11,7 @@ import { RateLimitModule } from './common/rate-limit';
 import { RedisModule } from './common/redis';
 import { JobsModule } from './jobs';
 import { RealtimeModule } from './realtime';
+import { AdminModule } from './modules/admin';
 
 /**
  * Validated at import time, because the `imports` array below needs concrete
@@ -50,7 +51,10 @@ const { env } = loadEnv();
     RealtimeModule,
 
     HealthModule,
-    // Feature modules land here as the build plan progresses (architecture.md §3).
+
+    // Feature modules (architecture.md §3). Admin is first, because AdminGuard
+    // and the audit log are infrastructure every later module writes to.
+    AdminModule,
   ],
 })
 export class AppModule implements NestModule {

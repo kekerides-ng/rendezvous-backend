@@ -124,3 +124,74 @@ liveness `200`, readiness `503`, and stays alive.
 PostGIS types have **not** been exercised against a real Postgres. The column
 helpers are tested at the driver-mapping level only. First thing to check when
 `docker compose up -d` is available.
+
+---
+
+## 1.1 — admin auth, and what a login endpoint gives away
+
+The admin module: `admin_users`, `admin_sessions`, `audit_log`, `settings`,
+`AdminGuard`, and a two-step login. The first feature module, built first
+because the guard and the audit log are infrastructure every later module
+writes to.
+
+**Login is two steps and the first one never issues a session.** Password, then
+TOTP. The intermediate state is a two-minute challenge token rather than a
+server-side "half-logged-in" session, because a half-session is a thing other
+code can mistake for a real one.
+
+**The part worth remembering: a login endpoint leaks whether an account
+exists, unless you make it not.** If an unknown email returns early, "no such
+admin" is *faster* than "wrong password", and anyone can enumerate your admin
+list with a stopwatch. The fix is to verify the password even when there is no
+account, against a dummy hash.
+
+That dummy hash has to be a **real** argon2id hash. Measured:
+
+| | |
+|---|---|
+| `verify` against a real hash | **10ms** |
+| `verify` against a malformed string | **1ms** |
+
+A malformed placeholder throws immediately, which *is* the timing signal it
+was meant to remove. Verified end to end against the running API: **16.1ms for
+a known email, 15.8ms for an unknown one.**
+
+**Other decisions inside it:**
+
+- **The session token is stored as a SHA-256, never itself** — same reasoning
+  as a password hash, so a leaked backup yields nothing presentable. Plain
+  SHA-256 rather than argon2, deliberately: argon2 is slow to make *guessing* a
+  low-entropy secret expensive, and a 256-bit random token has nothing to
+  guess. The cost would be paid on every authenticated request for no gain.
+- **`totpConfirmedAt` exists** so a secret is provisional until the admin
+  proves they can produce a code. Without it, someone who scans the QR and
+  then loses the phone is locked out of a secret the system thinks is live.
+- **TOTP accepts ±1 step** for clock drift, which opens a replay window — so
+  the matched step number is remembered and a reused code is refused. The audit
+  log distinguishes a *replayed* code from a *wrong* one, because a replay
+  means somebody saw a code they should not have.
+- **Deny by default**: the guard is on the controller class and routes opt
+  *out* with `@AdminPublic()`. Opting in means an endpoint added in a hurry is
+  unprotected and nothing says so.
+- **`sameSite: 'strict'`**, not `lax`: nothing should ever navigate into the
+  admin console from another site, so there is no flow it breaks.
+
+**The thing most likely to break — and it did.** `app.setGlobalPrefix('v1')`
+was swallowing the admin routes, so every one of them 404'd. `architecture.md`
+§4 and the CLAUDE.md layout both say admin lives at `/admin/*`, unversioned:
+it is a separate surface with a separate origin, a separate cookie and a
+separate consumer, and tying an internal console's URLs to the public API's
+versioning buys nothing. `main.ts` now excludes `admin/(.*)`.
+
+**Invisible to every unit test.** 80 of them passed while the entire module was
+unreachable. Only `curl` against the built output found it.
+
+**Verified against real infrastructure:** migration applied, `uuid v7` default
+firing, the full flow walked — wrong password, unknown email, enrolment, wrong
+code, correct code, `/me`, replay refused, logout, `/me` 401. Eight audit rows,
+and **zero** credentials in the logs or the audit table.
+
+**Deliberately not done.** No admin screens — `DECISIONS.md` P11 says the
+endpoints ship with each module and the UI lags until there is something to
+moderate. No admin-user management endpoints yet; `createAdmin` exists on the
+service and is seeded by hand.

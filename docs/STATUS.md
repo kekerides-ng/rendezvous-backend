@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-20 (0.2 done, verified against real Postgres).** Master copy lives in `companion-backend/docs/STATUS.md`
+**Last updated: 2026-10-20 (1.1 done — admin auth).** Master copy lives in `companion-backend/docs/STATUS.md`
 and is byte-identical in all four repos. Rewritten after each piece of work, not appended.
 
 ---
@@ -42,28 +42,29 @@ with no modules. That is the whole state in one sentence.**
 | Repo | State |
 |---|---|
 | `companion-web` | ~40 routes covering every supplied design frame. All data comes from `src/lib/mock/`. 385 tests. Build-plan **0.3 done**. |
-| `companion-backend` | Build-plan **0.1 and 0.2 done** — scaffold, fail-fast zod config, pino, health, Swagger, Drizzle, plus the common pieces: column helpers (`id`, `timestamps`, `usdc`, `geographyPoint`), event bus, BullMQ queues, Redis rate limiter, Socket.io gateway with the Redis adapter. 64 tests. **No feature modules yet.** |
+| `companion-backend` | **0.1, 0.2 and 1.1 done** — scaffold, config, logging, health, Swagger, Drizzle, the common pieces (column helpers, event bus, BullMQ, rate limiter, Socket.io + Redis adapter), and the **admin module**: `admin_users`/`admin_sessions`/`audit_log`/`settings`, two-step login with TOTP, `AdminGuard`, audit trail. 80 tests. Migrations applied and the flow walked end to end. |
 | `companion-admin` | Documentation only. Repo initialised, nothing built. |
 | `companion-contracts` | Documentation only. Repo initialised, nothing built. |
 
 ### Current phase
 
-**Phase A — finishing the foundation.** 0.2 is done, so **Phase B is unblocked**:
-feature modules can now be built.
+**Phase B — identity.** 1.1 is done, so `AdminGuard` and `audit_log` exist for
+every later module. 0.4, 0.5 and 0.6 remain open from Phase A but block nothing.
 
 ### The next three actions
 
-1. **0.5 contracts** — `forge init`, pinned OpenZeppelin, `deployments/`
+1. **1.2 user auth + wallet** — **the first real wiring.** The backend verifies
+   the Privy token and issues its own session cookie; the web side swaps
+   `lib/mock/auth.ts` for the generated client. **Blocked until Privy
+   credentials exist** — see `docs/SERVICES.md`.
+2. **0.5 contracts** — `forge init`, pinned OpenZeppelin, `deployments/`
    format. Before 4.1 because `Escrow.sol` must include `topUp()` from the
-   start; a contract cannot gain a function after deployment.
-2. **0.4 admin** then **0.6 CI** — admin scaffold and login shell, then
-   typecheck/lint/test CI in all four repos.
-3. **1.1 admin auth** — the first feature module, and the first thing to use
-   0.2's pieces. `AdminGuard` and `audit_log` are infrastructure every later
-   module writes to, and it needs **no third-party account**, unlike 1.2.
+   start; a contract cannot gain a function after deployment. No external
+   account needed.
+3. **0.4 admin** then **0.6 CI** — admin scaffold and login shell (the
+   endpoints exist now), then typecheck/lint/test CI in all four repos.
 
-Phase B can also start ahead of 0.4/0.5 if preferred: nothing in 1.1 or 1.2
-depends on the admin app or the contracts repo existing.
+If Privy is not ready, do 0.5 next — it needs nothing from anyone.
 
 **Nothing is blocked.** `OPERATOR_PRIVATE_KEY` is enforced by the escrow module
 at construction (`requireOperatorKey`), not at boot — see DECISIONS I12.
@@ -168,6 +169,10 @@ Two are open, which breaks the one-at-a-time rule:
 - **No `lib/api` usage yet.** `client.ts` and a placeholder `schema.d.ts` exist
   so the seam compiles.
 - **Privy credentials are needed before 1.2 can start** — see `docs/SERVICES.md`.
+- **No admin screens.** `DECISIONS.md` P11: endpoints ship with each module,
+  the UI lags. The admin app itself is build-plan 0.4.
+- **No admin-user management endpoints.** `AdminService.createAdmin` exists;
+  admins are seeded by hand until 7.1.
 - **The Socket.io gateway does not authenticate yet** — that is the open
   `TODO(human)`.
 

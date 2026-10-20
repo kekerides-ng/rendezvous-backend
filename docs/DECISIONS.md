@@ -388,3 +388,42 @@ one Nigerian carrier NAT while costing an attacker with proxies nothing.
 from `booking.bookings` to `auth.users` is a database-level coupling that
 cannot survive that split. It also enforces at the wrong layer — "this user
 exists" is a question only the auth module can answer.
+
+### I16 · A login endpoint must cost the same for a real account and a fake one
+**2026-10-20, build-plan 1.1.** `AdminService.login` verifies the password even
+when no account matched, against a **real** argon2id hash of a value nobody
+knows.
+**Why:** returning early on an unknown email makes "no such admin" measurably
+faster than "wrong password", and anyone can enumerate the admin list with a
+stopwatch.
+**The dummy hash has to be genuine.** Measured: `verify` against a real hash
+takes **10ms**, against a malformed string **1ms** — a placeholder throws
+immediately, which *is* the signal it was meant to remove. Verified against the
+running API at 16.1ms known / 15.8ms unknown.
+**Rules out:** an early return on a missing account; a hand-written constant
+that is not a valid argon2 encoding.
+
+### I17 · Session tokens are stored as SHA-256, not argon2
+**2026-10-20.** Password hashing is argon2id; session tokens are plain SHA-256.
+**Why they differ:** argon2 is deliberately slow to make guessing a
+**low-entropy** secret expensive. A 256-bit random token has nothing to guess,
+so the slowness would be paid on every authenticated request and buy nothing.
+The property that matters — a leaked table yields nothing presentable as a
+session — is delivered by either.
+
+### I18 · Admin routes are unversioned, at `/admin/*`
+**2026-10-20.** `main.ts` excludes `admin/(.*)` from the `/v1` global prefix.
+**Why:** admin is a separate surface with a separate origin, a separate session
+cookie and a separate consumer. Versioning it alongside the public API ties an
+internal console's URLs to the public contract's lifecycle for no benefit.
+**Found the hard way:** the prefix was swallowing every admin route, so all of
+them 404'd — while 80 unit tests passed. Only `curl` against the built output
+caught it.
+
+### I19 · The admin guard denies by default
+**2026-10-20.** `@UseGuards(AdminGuard)` is on the controller class; routes opt
+**out** with `@AdminPublic()`.
+**Why:** opting *in* per route means an endpoint added in a hurry is
+unprotected, and nothing fails to say so. The cookie is `httpOnly` and
+`sameSite: 'strict'` — nothing should ever navigate into the admin console
+from another site, so strict breaks no real flow.

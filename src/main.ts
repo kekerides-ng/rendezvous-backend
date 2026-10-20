@@ -16,6 +16,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 
+import cookieParser from 'cookie-parser';
 import type Redis from 'ioredis';
 
 import { AppModule } from './app.module';
@@ -53,6 +54,10 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  // The admin session is an httpOnly cookie, so something has to parse it
+  // before AdminGuard can read it.
+  app.use(cookieParser());
+
   // An allowlist, never a wildcard: the session is an httpOnly cookie, so a
   // permissive origin with credentials is a session-forwarding hole.
   app.enableCors({
@@ -71,9 +76,17 @@ async function bootstrap(): Promise<void> {
   socketAdapter.connect();
   app.useWebSocketAdapter(socketAdapter);
 
-  // Every route is versioned under /v1 except health and the docs, so the
-  // generated clients in web and admin have a stable prefix to pin to.
-  app.setGlobalPrefix('v1', { exclude: ['health', 'health/live'] });
+  // Every USER route is versioned under /v1, so the generated client in web
+  // has a stable prefix to pin to.
+  //
+  // Admin routes are excluded and live at `/admin/*` (architecture.md §4,
+  // CLAUDE.md layout). They are a separate surface with a separate origin, a
+  // separate session cookie and a separate consumer, so versioning them
+  // alongside the public API would tie an internal console's URLs to the
+  // public contract's lifecycle for no benefit.
+  app.setGlobalPrefix('v1', {
+    exclude: ['health', 'health/live', 'admin/(.*)'],
+  });
 
   // This spec IS the contract with companion-web and companion-admin: they run
   // `bun run api:gen` against /docs-json (architecture.md §2).

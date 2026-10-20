@@ -18,8 +18,9 @@ export default defineConfig({
   dbCredentials: {
     url: process.env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5433/companion',
   },
-  // Grows as modules land (architecture.md §3). Empty-ish at step 0.1 by design.
-  schemaFilter: ['public'],
+  // Grows as modules land (architecture.md §3). Every module schema must be
+  // listed, or drizzle-kit decides it is undeclared and writes a DROP.
+  schemaFilter: ['public', 'admin'],
   strict: true,
   verbose: true,
 });

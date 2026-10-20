@@ -8,6 +8,13 @@
       "when": 1761004800000,
       "tag": "0000_uuid_v7",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792483837137,
+      "tag": "0001_brief_nekra",
+      "breakpoints": true
     }
   ]
 }

@@ -15,12 +15,17 @@ import { customType, timestamp, uuid } from 'drizzle-orm/pg-core';
  *
  * v7 rather than v4 because it is time-ordered. A random v4 scatters inserts
  * across the whole B-tree, so every insert dirties a different page; v7 keys
- * sort by creation time, which keeps inserts at the right edge of the index and
- * makes `ORDER BY id` a free approximation of `ORDER BY created_at`. On a
- * messages table that matters.
+ * sort by creation time, which keeps inserts at the right edge of the index.
  *
- * `gen_random_uuid_v7()` is Postgres 18+. Until the Docker image is on 18, the
- * migration should create it as a small plpgsql shim — see `drizzle/` README.
+ * Ordered **to the millisecond**, not strictly monotonic: two ids generated in
+ * the same millisecond sort arbitrarily, because v7 does not carry a counter.
+ * That is fine for the clustering benefit, but it means `ORDER BY id` is an
+ * approximation of `ORDER BY created_at`, not a replacement — a messages list
+ * should still order by the timestamp.
+ *
+ * `gen_random_uuid_v7()` is native in Postgres 18. The image is Postgres 16, so
+ * `drizzle/0000_uuid_v7.sql` installs a plpgsql shim with interchangeable
+ * output. Delete it when the image moves to 18.
  */
 export const id = () =>
   uuid('id')

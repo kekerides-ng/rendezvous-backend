@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-20 (0.2 done).** Master copy lives in `companion-backend/docs/STATUS.md`
+**Last updated: 2026-10-20 (0.2 done, verified against real Postgres).** Master copy lives in `companion-backend/docs/STATUS.md`
 and is byte-identical in all four repos. Rewritten after each piece of work, not appended.
 
 ---
@@ -60,7 +60,7 @@ feature modules can now be built.
    typecheck/lint/test CI in all four repos.
 3. **1.1 admin auth** — the first feature module, and the first thing to use
    0.2's pieces. `AdminGuard` and `audit_log` are infrastructure every later
-   module writes to.
+   module writes to, and it needs **no third-party account**, unlike 1.2.
 
 Phase B can also start ahead of 0.4/0.5 if preferred: nothing in 1.1 or 1.2
 depends on the admin app or the contracts repo existing.
@@ -167,10 +167,7 @@ Two are open, which breaks the one-at-a-time rule:
   the real flow never has. They become socket events.
 - **No `lib/api` usage yet.** `client.ts` and a placeholder `schema.d.ts` exist
   so the seam compiles.
-- **The migrations and PostGIS types have never run against a real Postgres.**
-  Docker was not running when 0.2 was built, so the column helpers are tested
-  at the driver-mapping level only. Run `docker compose up -d` and
-  `bun run db:generate` as the first act of the next backend step.
+- **Privy credentials are needed before 1.2 can start** — see `docs/SERVICES.md`.
 - **The Socket.io gateway does not authenticate yet** — that is the open
   `TODO(human)`.
 
@@ -183,6 +180,7 @@ Two are open, which breaks the one-at-a-time rule:
 | What is the system meant to be? | `docs/architecture.md` |
 | What has been done, and what is next? | `docs/build-plan.md` (the checkboxes) |
 | Why is it like this? | `docs/DECISIONS.md` |
+| What accounts and keys do we need? | `docs/SERVICES.md` |
 | What broke, and what nearly did? | `<repo>/docs/learning-log.md` |
 | What are the rules for this repo? | `<repo>/CLAUDE.md` |
 | What exactly changed, and when? | `git log` in each repo |

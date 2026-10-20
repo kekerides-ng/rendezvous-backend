@@ -55,7 +55,7 @@ docs/
 10. After each change: `bun run typecheck && bun run lint && bun run test`. Fix before moving on.
 11. When a decision changes, update `docs/architecture.md` in the same change.
 12. Conventional commits. **Commit each implementation and each fix as it lands**, once `typecheck`, `lint` and `test` pass — one commit per coherent change, not one per session. Never add a remote or push without being asked.
-13. **Keep the handover record current.** After a feature or fix lands, before the commit: rewrite `docs/STATUS.md`, and append to `docs/DECISIONS.md` if a call was made. Both are **byte-identical across all four repos** like `architecture.md` — edit `companion-backend/docs/`, then copy to the other three. These two files are how someone picks this project up without you; a stale one is worse than none.
+13. **Keep the handover record current.** After a feature or fix lands, before the commit: rewrite `docs/STATUS.md`, and append to `docs/DECISIONS.md` if a call was made. They are **byte-identical across all four repos** like `architecture.md` — edit `companion-backend/docs/`, then copy to the other three. **And if a step turns out to need a third-party account, add it to `docs/SERVICES.md`** with what to create and which values to copy back, so Jaco can get them all in one sitting. These files are how someone picks this project up without you; a stale one is worse than none.
 
 ## Chain integration rules
 - Contract code is NOT in this repo. Never write or edit Solidity here; changes go to `companion-contracts`.

@@ -41,6 +41,6 @@
     "skipLibCheck": true,
     "pretty": true
   },
-  "include": ["src/**/*", "test/**/*", "drizzle.config.ts", "vitest.config.mts"],
+  "include": ["src/**/*", "test/**/*", "scripts/**/*", "drizzle.config.ts", "vitest.config.mts"],
   "exclude": ["node_modules", "dist"]
 }

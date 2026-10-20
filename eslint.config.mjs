@@ -69,5 +69,11 @@ export default tseslint.config(
     },
   },
 
+  // CLI tools, not server code: talking to the terminal is their entire job.
+  {
+    files: ['scripts/**/*.ts'],
+    rules: { 'no-console': 'off' },
+  },
+
   prettier,
 );

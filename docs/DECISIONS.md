@@ -427,3 +427,17 @@ caught it.
 unprotected, and nothing fails to say so. The cookie is `httpOnly` and
 `sameSite: 'strict'` — nothing should ever navigate into the admin console
 from another site, so strict breaks no real flow.
+
+### I20 · The first admin is created by CLI, not a seed endpoint
+**2026-10-20.** `bun run admin:create <email> <password> [role]`.
+**Why there is a problem at all:** admin creation is behind `AdminGuard`, so
+there is nobody to authenticate as until an admin exists. The usual fix — a
+seed route that only works while the table is empty — is an unauthenticated
+account-creation endpoint that lives in production forever, one truncated
+table away from being usable by anyone who finds it.
+**A CLI needs shell access to the server**, which is a far better fence than a
+runtime condition. It goes through `AdminService` rather than SQL, so the
+password rules and the audit row apply identically to an admin created later
+through the console.
+**Rules out:** a seed HTTP route; inserting an admin with raw SQL, which would
+skip the password policy and leave no audit trail.

@@ -110,6 +110,41 @@ bun run typecheck && bun run lint && bun run test && bun run build
 - If something that is plainly in a file reports as `not a function`, it is the
   Turbopack dev cache. Restart the dev server.
 
+#### Signing in as an admin
+
+There is **no admin UI yet** (build-plan 0.4). The endpoints exist and are
+usable with `curl`. Create the first admin from the command line — admin
+creation is behind `AdminGuard`, so there is nobody to authenticate as until
+one exists:
+
+```bash
+bun run admin:create ada@rendezvous.ng 'correct horse battery staple' admin
+```
+
+Then sign in, which is **two requests**:
+
+```bash
+# 1. Password. Returns a challenge and, on first sign-in, an otpauth:// URI.
+curl -X POST http://localhost:4000/admin/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"ada@rendezvous.ng","password":"correct horse battery staple"}'
+
+# Scan the otpauth:// URI with any authenticator app, then:
+
+# 2. The 6-digit code. THIS is what sets the session cookie.
+curl -X POST http://localhost:4000/admin/auth/totp \
+  -H 'content-type: application/json' -c cookies.txt \
+  -d '{"challenge":"<from step 1>","code":"123456"}'
+
+# Now authenticated.
+curl http://localhost:4000/admin/auth/me -b cookies.txt
+curl -X POST http://localhost:4000/admin/auth/logout -b cookies.txt
+```
+
+Note the routes are **`/admin/*`, not `/v1/admin/*`** — admin is excluded from
+the version prefix (DECISIONS I18). Swagger lists them at
+`http://localhost:4000/docs` under the `admin` tag.
+
 ### `companion-admin` / `companion-contracts`
 
 Nothing to run yet. See build-plan 0.4 and 0.5.

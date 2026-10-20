@@ -191,7 +191,29 @@ firing, the full flow walked — wrong password, unknown email, enrolment, wrong
 code, correct code, `/me`, replay refused, logout, `/me` 401. Eight audit rows,
 and **zero** credentials in the logs or the audit table.
 
-**Deliberately not done.** No admin screens — `DECISIONS.md` P11 says the
-endpoints ship with each module and the UI lags until there is something to
-moderate. No admin-user management endpoints yet; `createAdmin` exists on the
-service and is seeded by hand.
+### Using it
+
+There is **no admin UI** — that is build-plan 0.4, and `DECISIONS.md` P11 says
+screens lag the endpoints. Everything below is `curl` against a running API.
+
+**Creating the first admin is a bootstrapping problem**, and I left a hole in
+it on the first pass: admin creation sits behind `AdminGuard`, so there is
+nobody to authenticate as until an admin exists. I tested with a hand-seeded
+row and deleted it, which left the database with zero admins and no path to
+one.
+
+`bun run admin:create <email> <password> [admin|moderator]` closes it. The
+alternative — a seed route that "only works when the table is empty" — is an
+unauthenticated account-creation endpoint living in production forever, one
+truncated table away from being usable. A CLI needs shell access to the
+server, which is a far better fence. It goes through `AdminService`, not
+straight to SQL, so the password rules and the audit row apply exactly as they
+would through the console later.
+
+Then signing in is **two requests**: `POST /admin/auth/login` returns a
+challenge and, first time, an `otpauth://` URI to scan; `POST /admin/auth/totp`
+exchanges the challenge and a 6-digit code for the session cookie. `GET
+/admin/auth/me` confirms it. Full commands are in `docs/STATUS.md`.
+
+**Deliberately not done.** No admin screens. No admin-user management
+endpoints — `createAdmin` is reachable only from the CLI until 7.1.

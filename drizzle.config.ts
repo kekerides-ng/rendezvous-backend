@@ -20,7 +20,7 @@ export default defineConfig({
   },
   // Grows as modules land (architecture.md §3). Every module schema must be
   // listed, or drizzle-kit decides it is undeclared and writes a DROP.
-  schemaFilter: ['public', 'admin'],
+  schemaFilter: ['public', 'admin', 'auth'],
   strict: true,
   verbose: true,
 });

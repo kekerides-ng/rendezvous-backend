@@ -15,3 +15,17 @@ process.env.S3_ENDPOINT ??= 'http://localhost:9002';
 process.env.S3_BUCKET ??= 'companion-media';
 process.env.S3_ACCESS_KEY_ID ??= 'minioadmin';
 process.env.S3_SECRET_ACCESS_KEY ??= 'minioadmin';
+
+/**
+ * Obviously-fake Privy credentials, so `AuthModule` constructs.
+ *
+ * `requirePrivy` throws without them, which is the module enforcing its own
+ * requirement (DECISIONS I12) — and it caught this the moment AuthModule
+ * landed, which is the behaviour working rather than a nuisance.
+ *
+ * Nothing here calls Privy: these tests never present a token. A test that
+ * needs a verified identity injects a fake `IdentityProvider` instead, which
+ * is what the seam in `domain/identity-provider.ts` is for.
+ */
+process.env.PRIVY_APP_ID ??= 'test-app-id';
+process.env.PRIVY_APP_SECRET ??= 'test-app-secret';

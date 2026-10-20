@@ -217,3 +217,61 @@ exchanges the challenge and a 6-digit code for the session cookie. `GET
 
 **Deliberately not done.** No admin screens. No admin-user management
 endpoints — `createAdmin` is reachable only from the CLI until 7.1.
+
+---
+
+## 1.2 (backend + web) — real sign-in, and a seam worth keeping
+
+The `auth` module — `users`, `wallets`, `sessions` — plus `SessionGuard` and
+three endpoints at `/v1/auth/*`. On the web side the stand-in verifier is gone:
+Privy texts a real code and the backend issues a real cookie.
+
+**Privy never owns our session.** `architecture.md` §4 already said the backend
+verifies the provider's token *once* and then issues its own cookie, and that
+is the most valuable line in the whole module. It puts the provider behind
+`IdentityProvider.verify(token)` — one interface, bound to Privy in exactly one
+factory.
+
+That matters because the economics are genuinely unsettled. Privy bills per
+monthly active user; doing our own OTP costs ~₦6–9 per SMS plus an abuse
+surface to defend. Which is cheaper depends on how many people browse without
+ever booking — a ratio nobody will know for a year. The seam means changing
+that answer later is replacing one file, not rewriting sessions, screens, rate
+limits and audit rows.
+
+**A deprecation warning turned into a modelling fix.** Privy's `chainId` on a
+wallet is deprecated in favour of `chainType`, and chasing that exposed
+something I had wrong: I was storing a **chain id per wallet**. An EVM address
+is not chain-specific — the same address holds funds on Base, Ethereum and
+Polygon alike. What is a property of the wallet is the **family**
+(`ethereum`/`solana`), because a Solana address cannot hold our USDC at all.
+The column is `chain_type` now, and the Privy SDK config scopes embedded
+wallets to Ethereum for the same reason.
+
+**Session cookies differ from admin's on purpose.** `sameSite: 'lax'`, not
+`strict`: a user can legitimately arrive from a shared link or a push
+notification, and `strict` drops the session on that first navigation and looks
+exactly like being logged out. The admin console has no such flow, so it stays
+strict. The TTL is 30 days rather than 12 hours — this is a consumer app.
+
+**The rate limit is keyed on IP here**, not a user id, because at sign-in we do
+not know who this is yet and the thing being limited is someone grinding tokens
+at the endpoint.
+
+**The thing most likely to break:** `requirePrivy` throws at module
+construction, and it caught the test environment the moment `AuthModule`
+landed — `test/setup-env.ts` had no Privy vars, so the whole e2e suite failed
+to boot. That is the module-enforcement pattern (DECISIONS I12) working rather
+than being a nuisance, and the fix is obviously-fake credentials in the test
+env. A test that needs a verified identity injects a fake `IdentityProvider`
+instead.
+
+**Verified against the real thing:** a bogus token is refused with
+`UNAUTHENTICATED`, `/v1/auth/me` without a cookie is 401, the web proxy reaches
+all of it at `/api/v1/auth/*`, and the Privy **secret appears in no client
+bundle, no source file and no commit** — only the public app id reaches a
+browser.
+
+**Deliberately not done.** **1.2 is not ticked**: the build-plan line includes
+an admin users list with suspend, and that screen does not exist yet. The
+backend and web halves are complete and clickable.

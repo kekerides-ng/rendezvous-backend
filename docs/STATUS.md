@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-20 (0.4 done — admin console, end to end).** Master copy lives in `companion-backend/docs/STATUS.md`
+**Last updated: 2026-10-20 (1.2 backend + web — real sign-in).** Master copy lives in `companion-backend/docs/STATUS.md`
 and is byte-identical in all four repos. Rewritten after each piece of work, not appended.
 
 ---
@@ -41,22 +41,21 @@ with no modules. That is the whole state in one sentence.**
 
 | Repo | State |
 |---|---|
-| `companion-web` | ~40 routes covering every supplied design frame. All data comes from `src/lib/mock/`. 385 tests. Build-plan **0.3 done**. |
-| `companion-backend` | **0.1, 0.2 and 1.1 done** — scaffold, config, logging, health, Swagger, Drizzle, the common pieces (column helpers, event bus, BullMQ, rate limiter, Socket.io + Redis adapter), and the **admin module**: `admin_users`/`admin_sessions`/`audit_log`/`settings`, two-step login with TOTP, `AdminGuard`, audit trail. 80 tests. Migrations applied and the flow walked end to end. |
+| `companion-web` | ~40 routes covering every supplied design frame, a `/api/*` proxy, and **real sign-in**: Privy texts a code, the backend issues our session cookie. Everything else still reads `src/lib/mock/`. 393 tests. **0.3 done**. |
+| `companion-backend` | **0.1, 0.2, 1.1 done; 1.2 backend done** — scaffold, config, logging, health, Swagger, Drizzle, the common pieces (column helpers, event bus, BullMQ, rate limiter, Socket.io + Redis adapter), and the **admin module**: `admin_users`/`admin_sessions`/`audit_log`/`settings`, two-step login with TOTP, `AdminGuard`, audit trail — plus the **auth module**: `users`/`wallets`/`sessions`, Privy behind an `IdentityProvider` seam, `SessionGuard`, `/v1/auth/*`. 80 tests. Migrations applied. |
 | `companion-admin` | **0.4 done** — Next 16 on 3001, TanStack Query, `/api/*` proxy to the backend, and a **working sign-in**: password → TOTP enrolment → session → dashboard → sign out. Verified end to end. |
 | `companion-contracts` | Documentation only. Repo initialised, nothing built. |
 
 ### Current phase
 
-**Phase B — identity.** 1.1 is done, so `AdminGuard` and `audit_log` exist for
-every later module. 0.4, 0.5 and 0.6 remain open from Phase A but block nothing.
+**Phase B — identity.** 1.1 done; 1.2's backend and web halves done, admin
+half outstanding. 0.5 and 0.6 remain open from Phase A but block nothing.
 
 ### The next three actions
 
-1. **1.2 user auth + wallet** — the web app's turn: the backend verifies the
-   Privy token and issues its own session cookie, and `lib/mock/auth.ts` is
-   deleted. The proxy and the typed client are already in place. **Blocked
-   until Privy credentials exist** — see `docs/SERVICES.md`.
+1. **Finish 1.2** — the admin half: a users list with suspend. That is all
+   that stands between here and ticking it; the backend and web halves are
+   done and clickable.
 2. **0.5 contracts** — `forge init`, pinned OpenZeppelin, `deployments/`
    format. Before 4.1 because `Escrow.sol` must include `topUp()` from the
    start; a contract cannot gain a function after deployment. No external
@@ -109,6 +108,16 @@ bun run typecheck && bun run lint && bun run test && bun run build
   use `bun run build` to verify instead.
 - If something that is plainly in a file reports as `not a function`, it is the
   Turbopack dev cache. Restart the dev server.
+
+#### Signing in as a user
+
+**`bun run dev` in `web/`, then `http://localhost:3000`** → Get started →
+phone → **a real SMS arrives** → enter the code → you land on `/sign-up/profile`
+the first time, or `/discover` if you have signed in before.
+
+Needs `NEXT_PUBLIC_PRIVY_APP_ID` in `web/.env` and `PRIVY_APP_ID` +
+`PRIVY_APP_SECRET` in `backend/.env`. The secret belongs **only** in the
+backend — anything prefixed `NEXT_PUBLIC_` is shipped to every browser.
 
 #### Signing in as an admin
 

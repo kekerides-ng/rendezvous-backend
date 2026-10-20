@@ -38,6 +38,29 @@ export const infraEnvSchema = z.object({
   S3_SECRET_ACCESS_KEY: z.string().min(1),
   S3_REGION: z.string().min(1).default('auto'),
 
+  /**
+   * Privy — the embedded-wallet provider that signs users in and creates their
+   * Base wallet (architecture.md §4).
+   *
+   * The SECRET lives only here. `NEXT_PUBLIC_PRIVY_APP_ID` in the web app is
+   * the public half; the secret is what proves to Privy that this server is
+   * us, and anything prefixed `NEXT_PUBLIC_` is shipped to every browser.
+   *
+   * Optional in the schema for the same reason as the operator key
+   * (DECISIONS I12): a deployment that does not run the auth module should
+   * still boot. `requirePrivy()` below is what the auth module calls.
+   */
+  PRIVY_APP_ID: z
+    .string()
+    .min(1)
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+  PRIVY_APP_SECRET: z
+    .string()
+    .min(1)
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+
   // CORS is an allowlist, never a wildcard: the session is an httpOnly cookie,
   // so a permissive origin is a credential-forwarding hole.
   WEB_ORIGIN: z.string().min(1).default('http://localhost:3000'),
@@ -228,5 +251,32 @@ export function requireOperatorKey(env: Pick<Env, 'OPERATOR_PRIVATE_KEY' | 'NODE
       "cannot be refunded, which fails silently from the user's side.",
     ].join('\n'),
     ['OPERATOR_PRIVATE_KEY: not set'],
+  );
+}
+
+/**
+ * The auth module calls this at construction and refuses to start without
+ * Privy credentials — same shape as `requireOperatorKey`, same reasoning
+ * (DECISIONS I12): config validates shape, the module that needs a thing
+ * enforces that it is there.
+ */
+export function requirePrivy(env: Pick<Env, 'PRIVY_APP_ID' | 'PRIVY_APP_SECRET'>): {
+  appId: string;
+  appSecret: string;
+} {
+  if (env.PRIVY_APP_ID && env.PRIVY_APP_SECRET) {
+    return { appId: env.PRIVY_APP_ID, appSecret: env.PRIVY_APP_SECRET };
+  }
+
+  throw new EnvValidationError(
+    [
+      'The auth module cannot start without Privy credentials:',
+      `  ✗ PRIVY_APP_ID: ${env.PRIVY_APP_ID ? 'set' : 'not set'}`,
+      `  ✗ PRIVY_APP_SECRET: ${env.PRIVY_APP_SECRET ? 'set' : 'not set'}`,
+      '',
+      'They verify the token a user signs in with. Without them nobody can log',
+      'in at all. Get them from dashboard.privy.io — see docs/SERVICES.md.',
+    ].join('\n'),
+    ['PRIVY_APP_ID or PRIVY_APP_SECRET not set'],
   );
 }

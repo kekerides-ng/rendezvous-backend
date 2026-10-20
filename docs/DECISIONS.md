@@ -492,3 +492,36 @@ not, and the gap is invisible until something tries to consume it.
 **Rules out:** declaring an error shape only in zod; adding `@ApiResponse` per
 status by hand, since the one that gets forgotten is the one a client cannot
 then handle.
+
+### I25 · The identity provider sits behind one interface
+**2026-10-20, build-plan 1.2.** `IdentityProvider.verify(token)` in
+`modules/auth/domain/`, bound to Privy in exactly one factory.
+**Why it is worth the indirection:** the economics are genuinely unsettled.
+Privy bills **per monthly active user** — free to ~499, then ~$299/mo — while
+our own OTP costs **₦6–9 per SMS** plus an abuse surface to defend. Which wins
+depends on how many people browse without ever booking, a ratio nobody will
+know for a year. `architecture.md` §4 already had the backend issuing **its
+own** session cookie after verifying a provider token, so the provider was
+never load-bearing; this makes that explicit.
+**Chosen for now:** Privy for both sign-in and wallet, because under 499 MAU it
+is free, there is no SMS bill, and no abuse defences to build.
+**Revisit when:** approaching the MAU boundary.
+
+### I26 · A wallet has a chain *family*, not a chain id
+**2026-10-20.** `wallets.chain_type` is `ethereum` or `solana`.
+**Why:** an EVM address is not chain-specific — the same address holds funds on
+Base, Ethereum and Polygon alike, so a per-wallet chain id records something
+that is not a property of the wallet. Which chain we settle on comes from
+`CHAIN_ID` in config. The family *is* a property, because a Solana address
+cannot hold our USDC at all.
+**Found via:** Privy deprecating `chainId` in favour of `chainType`, which
+turned out to be the right model rather than a rename.
+
+### I27 · User sessions are `sameSite: lax`; admin sessions are `strict`
+**2026-10-20.** Different cookies, different rules, deliberately.
+**Why they differ:** a user legitimately arrives from a shared link or a push
+notification, and `strict` drops the session on that first cross-site
+navigation — indistinguishable from being logged out. The admin console has no
+such flow, so nothing is lost by keeping it strict there. User TTL is 30 days
+against admin's 12 hours, for the same reason: one is a consumer app, the other
+is a tool for people with elevated power.

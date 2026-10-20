@@ -17,7 +17,7 @@ configured
 
 | | Service | Needed for | Why it blocks |
 |---|---|---|---|
-| 🟡 | **Privy** | 1.2 user auth | Nothing in the app can log in without it |
+| ✅ | **Privy** | 1.2 user auth | **Done** — credentials in place, sign-in works |
 | ⬜ | **Mapbox** | already built | The rendezvous map falls back to a placeholder until a token exists |
 | ⬜ | **Smile ID** | 1.3 KYC | The 18+ gate before anyone can make an offer |
 | ⬜ | Everything else | Phase 2+ | — |
@@ -27,7 +27,7 @@ cheapest one to tick off, and the only one where you would see an immediate diff
 
 ---
 
-## 1 · Privy — sign-in and embedded wallets 🟡
+## 1 · Privy — sign-in and embedded wallets ✅
 
 **What it does:** signs the user in by email or phone and creates an embedded Base wallet
 in the same step (`architecture.md` §4). The backend verifies Privy's token and issues its

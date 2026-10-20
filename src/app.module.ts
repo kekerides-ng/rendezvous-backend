@@ -12,6 +12,7 @@ import { RedisModule } from './common/redis';
 import { JobsModule } from './jobs';
 import { RealtimeModule } from './realtime';
 import { AdminModule } from './modules/admin';
+import { AuthModule } from './modules/auth';
 
 /**
  * Validated at import time, because the `imports` array below needs concrete
@@ -55,6 +56,7 @@ const { env } = loadEnv();
     // Feature modules (architecture.md §3). Admin is first, because AdminGuard
     // and the audit log are infrastructure every later module writes to.
     AdminModule,
+    AuthModule,
   ],
 })
 export class AppModule implements NestModule {

@@ -29,6 +29,8 @@ A Nigeria-first companionship app. Verified adults book each other's time for di
 
    **The browser never calls the backend directly over HTTP.** Web and admin each proxy through their own Next.js route handlers (`app/api/[...path]/route.ts`), which forward to the backend server-side.
 
+   The admin proxy maps the backend cookie's `Path=/admin` to the browser-visible `Path=/api/admin` on both sign-in and logout. It forwards each `Set-Cookie` separately and preserves HttpOnly, Secure, SameSite and expiry attributes. After TOTP succeeds, the admin client replaces cached signed-out state with the returned profile before navigating.
+
    The reason is cookies, not tidiness. Web on Vercel and the backend on Railway are **cross-site**, so a session cookie set by the API origin is a third-party cookie — already blocked by Safari's ITP and being phased out by Chrome. Login would fail silently for a large share of Nigerian users, with nothing in the logs. Proxying makes the session first-party to the app's own origin.
 
    Two consequences: CORS stops mattering for HTTP, and the backend URL is never public. **Socket.io is the exception** — a WebSocket cannot proxy through a route handler, so it connects to the backend directly and therefore cannot rely on that cookie (see §7).

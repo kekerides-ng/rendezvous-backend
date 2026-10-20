@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-20 (admin startup database diagnostics; live acceptance pending).**
+**Last updated: 2026-10-20 (admin login cookie/cache fix; live acceptance pending).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -26,7 +26,7 @@ live database/browser acceptance pass below.**
 |---|---|
 | `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. New `/admin/users` list, phone reveal, suspend and reinstate endpoints. 141 tests pass, including 11 users HTTP-contract checks. Typecheck, lint and build pass. No schema migration needed for this slice. |
 | `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Everything after sign-in is mock. API types regenerated; typecheck/lint and 393 tests pass. |
-| `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate. 27 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
+| `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate. 34 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
 | `contracts` | Documentation only. 0.5 still open. |
 
 ### What the new users slice does
@@ -41,7 +41,7 @@ live database/browser acceptance pass below.**
 ### Verification completed and limits
 
 - Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**141 passed**), `bun run build`.
-- Admin: typecheck, lint, tests (**27 passed**); these include proxy forwarding, filters, confirmations, role visibility, reveals and logout cleanup.
+- Admin: typecheck, lint, tests (**34 passed**); these include proxy forwarding, filters, confirmations, role visibility, reveals and logout cleanup.
 - Web: typecheck, lint, tests (**393 passed**). Both API schemas were regenerated from the real controller metadata.
 - Backend HTTP tests run the real Nest/Express middleware, cookie parsing, guards, validation and route prefix rules in-process without binding a TCP port. Repository tests exercise Drizzle's real SQL/transaction driver with a fake connection, including audit-failure rollback.
 - **Not verified against live Postgres or in a browser during this session.** Docker socket access, local TCP connections and port binding were denied by the workspace sandbox. Real database lock contention still needs the live check.
@@ -127,8 +127,17 @@ SQL files and default `drizzle.__drizzle_migrations` history as drizzle-kit.
 DATABASE_URL against the credentials used to initialize the existing volume.
 The Compose project name has a local user edit from `companion` to `rendezvous`,
 which can select a different volume. Do not delete/reset volumes to diagnose it.
-The user's underlying database failure is not yet confirmed; their CLI output
-is needed because this workspace cannot reach Postgres.
+The user corrected the local database target to `rendezvous` and restarted the
+backend, clearing the reported database error.
+
+### If TOTP succeeds but login returns to the same screen
+
+The admin proxy now maps the session cookie from backend `Path=/admin` to
+browser `Path=/api/admin`, including logout deletion. TOTP success also replaces
+cached signed-out state before navigating. These fixes pass 34 admin tests plus
+typecheck/lint. Refresh the login page, start again, and use a fresh authenticator
+code. Live browser confirmation is still pending; the existing authenticator
+setup does not need to be recreated.
 
 ### Generate API types without a running backend
 

@@ -569,3 +569,21 @@ API generation should not require a running database or a listening server.
 The HTTP test harness likewise drives real Express/Nest middleware, guards,
 pipes and JSON responses in-process without a TCP listener. These checks do not
 replace a live database/browser acceptance test.
+
+
+### I31 · Cookie paths must match the browser-facing proxy URL
+**2026-10-20, admin login follow-up.** The backend issues its admin cookie at
+`Path=/admin`, but the browser requests `/api/admin/*`. Passing the cookie
+through unchanged stored a first-party cookie that the browser would never send
+on the next API request. The proxy now maps the path to `/api/admin` on both
+issuance and logout deletion, preserving security flags and individual
+Set-Cookie headers (Expires contains a comma, so cookies cannot be split on it).
+This corrects the earlier proxy passthrough assumption; the backend's own cookie
+contract remains unchanged.
+
+There was a second redirect race: invalidating cached `me: null` after TOTP
+left that signed-out value visible to the console while its refetch was pending.
+TOTP success now cancels any old identity request and seeds the returned admin
+profile before replacing the login route with the dashboard. Failed/empty login
+responses do not navigate. Regression tests cover the cookie path, logout path,
+multiple cookies, stale signed-out state and successful/failed TOTP navigation.

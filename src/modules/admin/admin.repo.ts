@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 
-import { DRIZZLE, type Database } from '../../common/db';
+import { DRIZZLE, type Database, type Transaction } from '../../common/db';
 import {
   type AdminRole,
   type AdminSession,
@@ -142,8 +142,8 @@ export class AdminRepo {
   }
 
   /** Append-only. Nothing in this module updates or deletes an audit row. */
-  async recordAudit(entry: AuditEntryInput): Promise<void> {
-    await this.db.insert(auditLog).values(entry);
+  async recordAudit(entry: AuditEntryInput, transaction?: Transaction): Promise<void> {
+    await (transaction ?? this.db).insert(auditLog).values(entry);
   }
 
   async recentAudit(limit = 50) {

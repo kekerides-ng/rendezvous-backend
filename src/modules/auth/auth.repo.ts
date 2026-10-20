@@ -1,20 +1,84 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, gt, isNull } from 'drizzle-orm';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, asc, count, desc, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
 
-import { DRIZZLE, type Database } from '../../common/db';
+import { DRIZZLE, type DbExecutor, type Transaction } from '../../common/db';
 import { type Session, type User, sessions, users, wallets } from './auth.schema';
 
 /** The ONLY place that touches `auth.*` tables (CLAUDE.md rule 1). */
 @Injectable()
 export class AuthRepo {
-  constructor(@Inject(DRIZZLE) private readonly db: Database) {}
+  constructor(@Inject(DRIZZLE) private readonly db: DbExecutor) {}
+
+  async transaction<T>(work: (repo: AuthRepo, transaction: Transaction) => Promise<T>): Promise<T> {
+    return this.db.transaction((transaction) => work(new AuthRepo(transaction), transaction));
+  }
+
+  /** Serialize first sign-ins too, before there is a user row to lock. */
+  async lockIdentity(providerId: string): Promise<void> {
+    await this.db.execute(sql`select pg_advisory_xact_lock(hashtextextended(${providerId}, 0))`);
+  }
+
+  async lockUser(id: string): Promise<User> {
+    const [user] = await this.db.select().from(users).where(eq(users.id, id)).for('update');
+    if (!user) throw new NotFoundException('User not found.');
+    return user;
+  }
+
+  async listUsers(input: {
+    page: number;
+    pageSize: number;
+    status: string;
+    sort: 'createdAt' | 'lastLoginAt';
+    direction: 'asc' | 'desc';
+  }) {
+    const where =
+      input.status === 'active'
+        ? isNull(users.disabledAt)
+        : input.status === 'suspended'
+          ? isNotNull(users.disabledAt)
+          : undefined;
+    const column = input.sort === 'createdAt' ? users.createdAt : users.lastLoginAt;
+    const order = input.direction === 'asc' ? asc(column) : desc(column);
+    return this.db.transaction(
+      async (tx) => {
+        const [total] = await tx.select({ count: count() }).from(users).where(where);
+        const items = await tx
+          .select()
+          .from(users)
+          .where(where)
+          .orderBy(sql`${order} nulls last`, asc(users.id))
+          .limit(input.pageSize)
+          .offset((input.page - 1) * input.pageSize);
+        return { items, total: total?.count ?? 0, page: input.page, pageSize: input.pageSize };
+      },
+      { isolationLevel: 'repeatable read', accessMode: 'read only' },
+    );
+  }
+
+  async setSuspended(id: string, disabledAt: Date | null): Promise<User> {
+    const [user] = await this.db
+      .update(users)
+      .set({ disabledAt, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    if (!user) throw new NotFoundException('User not found.');
+    return user;
+  }
+
+  async revokeAllSessions(userId: string): Promise<void> {
+    await this.db
+      .update(sessions)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+  }
 
   async findByProviderId(providerUserId: string): Promise<User | undefined> {
     const [row] = await this.db
       .select()
       .from(users)
       .where(eq(users.providerUserId, providerUserId))
-      .limit(1);
+      .limit(1)
+      .for('update');
     return row;
   }
 

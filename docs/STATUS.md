@@ -1,255 +1,142 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-20 (1.2 backend + web — real sign-in).** Master copy lives in `companion-backend/docs/STATUS.md`
-and is byte-identical in all four repos. Rewritten after each piece of work, not appended.
-
----
+**Last updated: 2026-10-20 (1.2 admin implementation; live acceptance pending).**
+Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
+`architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
+backend, web, admin and contracts. Rewrite status after each piece of work.
 
 ## Start here
 
-You are picking up a project already in progress. Before changing anything:
+1. Read `docs/DECISIONS.md` for the working agreements and reasons behind the design.
+2. Read the relevant repo's `CLAUDE.md`; use Bun for installs and scripts.
+3. Read `docs/architecture.md`; edit the backend master and sync copies.
+4. Use `docs/build-plan.md` as the completion pointer. Work one step per session.
 
-1. **Read `docs/DECISIONS.md`** — why things are the way they are. A lot of
-   what looks odd here was a deliberate call with a reason.
-2. **Read the `CLAUDE.md` in whichever repo you are working in** — that is the
-   rulebook for it, and the rules are enforced by lint and tests, not by trust.
-3. **Read `docs/architecture.md`** — the design. It is **byte-identical in all
-   four repos**: edit `companion-backend/docs/architecture.md` and copy it to
-   the other three, or you will break the sync.
-4. **`docs/build-plan.md` is the pointer.** The checkboxes say where work has
-   got to, not the git log and not this file.
+Commit coherent changes locally after typecheck, lint and tests pass. Never add
+a remote or push unless asked. Never format Markdown with Prettier. Leave
+`TODO(human)` markers alone; they are Jaco's homework.
 
-House rules that are easy to break by accident:
+## Where work stopped
 
-- **Commit each change as it lands**, with a conventional-commit message, once
-  `typecheck`, `lint` and `test` pass. Do not batch a session into one commit.
-  Never add a remote or push without being asked.
-- **One build-plan step per session.** Finish it, write it up in that repo's
-  `docs/learning-log.md`, tick it in all four `build-plan.md` copies.
-- **Prettier must never format Markdown.** `*.md` is in every `.prettierignore`
-  because reflowing a table silently breaks the byte-identical docs.
-- **Bun, never npm/pnpm/yarn.** Commit `bun.lock`.
-- **`TODO(human)` markers are Jaco's homework, not yours.** Leave them. There
-  should only ever be one open at a time.
+**Real user sign-in and the admin users slice are implemented. Everything else
+in the user app still reads mock data. Step 1.2 remains unchecked until the
+live database/browser acceptance pass below.**
 
----
-
-## Where the work stopped
-
-**The web app is fully drawn and completely unwired. The backend is a scaffold
-with no modules. That is the whole state in one sentence.**
-
-| Repo | State |
+| Repo | Current state |
 |---|---|
-| `companion-web` | ~40 routes covering every supplied design frame, a `/api/*` proxy, and **real sign-in**: Privy texts a code, the backend issues our session cookie. Everything else still reads `src/lib/mock/`. 393 tests. **0.3 done**. |
-| `companion-backend` | **0.1, 0.2, 1.1 done; 1.2 backend done** — scaffold, config, logging, health, Swagger, Drizzle, the common pieces (column helpers, event bus, BullMQ, rate limiter, Socket.io + Redis adapter), and the **admin module**: `admin_users`/`admin_sessions`/`audit_log`/`settings`, two-step login with TOTP, `AdminGuard`, audit trail — plus the **auth module**: `users`/`wallets`/`sessions`, Privy behind an `IdentityProvider` seam, `SessionGuard`, `/v1/auth/*`. 80 tests. Migrations applied. |
-| `companion-admin` | **0.4 done** — Next 16 on 3001, TanStack Query, `/api/*` proxy to the backend, and a **working sign-in**: password → TOTP enrolment → session → dashboard → sign out. Verified end to end. |
-| `companion-contracts` | Documentation only. Repo initialised, nothing built. |
+| `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. New `/admin/users` list, phone reveal, suspend and reinstate endpoints. 137 tests pass, including 11 users HTTP-contract checks. Typecheck, lint and build pass. No schema migration needed for this slice. |
+| `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Everything after sign-in is mock. API types regenerated; typecheck/lint and 393 tests pass. |
+| `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate. 27 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
+| `contracts` | Documentation only. 0.5 still open. |
 
-### Current phase
+### What the new users slice does
 
-**Phase B — identity.** 1.1 done; 1.2's backend and web halves done, admin
-half outstanding. 0.5 and 0.6 remain open from Phase A but block nothing.
+- Open `http://localhost:3001/users` after admin sign-in, or follow **Users** in the sidebar.
+- Both roles can list users and explicitly reveal a phone. Raw numbers never appear in list responses or query/mutation result caches. Reveals are audited and responses use `Cache-Control: no-store`.
+- Only `admin` can suspend/reinstate. Each action needs an in-page confirmation and a reason. Backend role denial is 403, not 401.
+- Suspension sets the existing `disabled_at` field, revokes every session and blocks sign-in before any user/contact/wallet/session writes. Reinstatement never restores old sessions.
+- Sign-in and suspension lock the same user row. Status, revocation and audit insertion are one transaction; audit failure rolls the change back.
+- Logout clears protected caches. API 401 redirects to login; permission and service errors remain visible as errors.
 
-### The next three actions
+### Verification completed and limits
 
-1. **Finish 1.2** — the admin half: a users list with suspend. That is all
-   that stands between here and ticking it; the backend and web halves are
-   done and clickable.
-2. **0.5 contracts** — `forge init`, pinned OpenZeppelin, `deployments/`
-   format. Before 4.1 because `Escrow.sol` must include `topUp()` from the
-   start; a contract cannot gain a function after deployment. No external
-   account needed.
-3. **0.4 admin** then **0.6 CI** — admin scaffold and login shell (the
-   endpoints exist now), then typecheck/lint/test CI in all four repos.
+- Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**137 passed**), `bun run build`.
+- Admin: typecheck, lint, tests (**27 passed**); these include proxy forwarding, filters, confirmations, role visibility, reveals and logout cleanup.
+- Web: typecheck, lint, tests (**393 passed**). Both API schemas were regenerated from the real controller metadata.
+- Backend HTTP tests run the real Nest/Express middleware, cookie parsing, guards, validation and route prefix rules in-process without binding a TCP port. Repository tests exercise Drizzle's real SQL/transaction driver with a fake connection, including audit-failure rollback.
+- **Not verified against live Postgres or in a browser during this session.** Docker socket access, local TCP connections and port binding were denied by the workspace sandbox. Real database lock contention still needs the live check.
+- **Admin production build remains unverified.** Turbopack's internal port binding was denied. A webpack fallback got past that but could not download Inter from Google Fonts (DNS/network denied). Product fonts/configuration were left intact.
+- TanStack Table could not be downloaded. This screen temporarily uses an accessible native table with the same server-side controls; requests still use TanStack Query. See I29.
 
-If Privy is not ready, do 0.5 next — it needs nothing from anyone.
+## Next actions
 
-**Nothing is blocked.** `OPERATOR_PRIVATE_KEY` is enforced by the escrow module
-at construction (`requireOperatorKey`), not at boot — see DECISIONS I12.
+1. Finish the live acceptance pass for **1.2**, then tick it in all four build-plan copies. Do not start KYC in this session.
+2. **0.5 contracts**: Foundry scaffold, pinned OpenZeppelin, deployment format; before 4.1.
+3. **0.6 CI**, then **1.3 KYC**, following the build plan.
 
----
+### Live acceptance pass for 1.2
 
-## How to run each repo
+Start Docker and the backend, web and admin on the ports below. Use an existing
+real user or sign in once by phone. Do not suspend a user's account without
+choosing an appropriate test account.
 
-Everything uses **Bun** for install and scripts, Node 22 as the runtime.
+1. Sign in as an admin, open Users, and verify the existing database row appears masked. Try status filters, timestamp sort, pagination and audited phone reveal.
+2. Suspend the test user with a reason. Their existing `/api/v1/auth/me` request must return 401, and a fresh provider-token exchange must return 403 without setting a session cookie.
+3. Reinstate with a reason. The old cookie must remain rejected; a new sign-in succeeds.
+4. Check audit rows for actor, subject, before/after state, reason and request context. Reveals must not copy the phone itself into the audit payload.
+5. Sign in as a moderator: listing/reveal work, destructive controls are hidden, and direct suspension/reinstatement requests return 403.
+6. Exercise simultaneous sign-in/suspension against Postgres, then run the normal admin production build with network access.
 
-### `companion-backend`
+## Run the apps
 
-```bash
-bun install
-docker compose up -d     # Postgres+PostGIS, Redis, MinIO
-bun run dev              # port 4000
-bun run typecheck && bun run lint && bun run test
-```
-
-**The Docker ports are offset on purpose** — Postgres **5433**, Redis **6380**,
-MinIO **9002/9003** — because a superseded project at `~/Documents/rendezvous old`
-holds the standard ones. Connecting to 5432 gets you the wrong database.
-
-Swagger is at `http://localhost:4000/docs`, and the spec web and admin generate
-from is `/docs-json`.
-
-### `companion-web`
+All package operations use **Bun**; production backend runtime is Node 22.
 
 ```bash
+cd backend
 bun install
-bun run dev              # port 3000
-bun run typecheck && bun run lint && bun run test && bun run build
+docker compose up -d
+bun run dev                 # 4000; Swagger /docs, spec /docs-json
+
+cd ../web
+bun install
+bun run dev                 # 3000 — Jaco runs this; do not start another silently
+
+cd ../admin
+bun install
+bun run dev                 # 3001
 ```
 
-- **`/design` is the style guide and the review surface.** Every primitive in
-  every state, plus links to every screen. Start there.
-- `bun run brand:icons` regenerates the PWA icon set from `public/brand/`, and
-  `--check` verifies the traced mark still matches the artwork.
-- `bun run api:gen` regenerates `src/lib/api/schema.d.ts` from the backend's
-  `/docs-json`. There is nothing to generate yet.
-- **Jaco runs the dev server.** Do not start one on port 3000 without saying so;
-  use `bun run build` to verify instead.
-- If something that is plainly in a file reports as `not a function`, it is the
-  Turbopack dev cache. Restart the dev server.
+Docker ports deliberately differ from the old project's: Postgres **5433**,
+Redis **6380**, MinIO **9002/9003**. Port 5432 belongs to the old project.
 
-#### Signing in as a user
+Each app: `bun run typecheck && bun run lint && bun run test`.
+Backend/admin/web builds use `bun run build`.
 
-**`bun run dev` in `web/`, then `http://localhost:3000`** → Get started →
-phone → **a real SMS arrives** → enter the code → you land on `/sign-up/profile`
-the first time, or `/discover` if you have signed in before.
+### Sign in as a user
 
-Needs `NEXT_PUBLIC_PRIVY_APP_ID` in `web/.env` and `PRIVY_APP_ID` +
-`PRIVY_APP_SECRET` in `backend/.env`. The secret belongs **only** in the
-backend — anything prefixed `NEXT_PUBLIC_` is shipped to every browser.
+`http://localhost:3000` → Get started → actual phone number → SMS code.
+First sign-in goes to `/sign-up/profile`; later sign-ins go to `/discover`.
+Privy's public app ID belongs in `web/.env` as `NEXT_PUBLIC_PRIVY_APP_ID`.
+`PRIVY_APP_ID` and `PRIVY_APP_SECRET` belong only in `backend/.env`. Never move
+the secret back to the web app or expose it with a `NEXT_PUBLIC_` prefix.
 
-#### Signing in as an admin
+### Sign in as an admin
 
-**In a browser: `bun run dev` in `admin/`, then open `http://localhost:3001/login`.**
-
-First create an admin from the command line — creation is behind `AdminGuard`,
-so there is nobody to authenticate as until one exists:
+If none exists, from `backend/`:
 
 ```bash
 bun run admin:create ada@rendezvous.ng 'correct horse battery staple' admin
 ```
 
-Then sign in at `http://localhost:3001/login`: email and password, scan the key
-it shows with an authenticator app, enter the 6-digit code. That lands you on
-the dashboard with a working sign-out.
+Open `http://localhost:3001/login`, enter email/password, enrol an authenticator
+on first use, then enter its TOTP code. The dashboard links to Users.
+Admin endpoints are `/admin/*`, **not** `/v1/admin/*`. The browser calls them
+through the admin app's `/api/admin/*` proxy. Admin staff account management
+remains a later step; `/users` is for application users.
 
-The same thing with `curl`, against the **admin app's** origin — note `/api/`,
-because the browser never calls the backend directly (architecture.md §2):
-
-```bash
-# 1. Password. Returns a challenge and, on first sign-in, an otpauth:// URI.
-curl -X POST http://localhost:3001/api/admin/auth/login \
-  -H 'content-type: application/json' \
-  -d '{"email":"ada@rendezvous.ng","password":"correct horse battery staple"}'
-
-# Scan the otpauth:// URI with any authenticator app, then:
-
-# 2. The 6-digit code. THIS is what sets the session cookie.
-curl -X POST http://localhost:3001/api/admin/auth/totp \
-  -H 'content-type: application/json' -c cookies.txt \
-  -d '{"challenge":"<from step 1>","code":"123456"}'
-
-# Now authenticated.
-curl http://localhost:3001/api/admin/auth/me -b cookies.txt
-curl -X POST http://localhost:3001/api/admin/auth/logout -b cookies.txt
-```
-
-Note the routes are **`/admin/*`, not `/v1/admin/*`** — admin is excluded from
-the version prefix (DECISIONS I18). Swagger lists them at
-`http://localhost:4000/docs` under the `admin` tag.
-
-### `companion-admin`
+### Generate API types without a running backend
 
 ```bash
-bun install
-bun run dev              # port 3001
-bun run typecheck && bun run lint && bun run build
+cd backend
+bun run api:export /private/tmp/rendezvous-openapi.json
+cd ../admin
+bun x --no-install openapi-typescript /private/tmp/rendezvous-openapi.json -o src/lib/api/schema.d.ts
+cd ../web
+bun x --no-install openapi-typescript /private/tmp/rendezvous-openapi.json -o src/lib/api/schema.d.ts
 ```
 
-Needs the backend running on 4000. `API_URL` in `.env` points at it and is
-**server-side only** — the browser never sees it.
+Normal `bun run api:gen` still works against a running backend. The offline
+export shares Swagger configuration/prefix rules with production; keep its
+controller list current as modules are added.
 
-### `companion-contracts`
+## Later slices and existing debt
 
-Nothing to run yet. See build-plan 0.5.
+- Per slice: backend module/endpoints/Swagger/tests → generated frontend types → wire web/admin UI → live test → learning log → tick all four build plans.
+- User mocks are still in `web/src/lib/mock/`; delete the corresponding mock file when its slice is fully wired.
+- Mapbox needs `NEXT_PUBLIC_MAPBOX_TOKEN`; otherwise the map intentionally uses a drawn fallback. Photos are still placeholders.
+- Phone/DOB column encryption remains pre-production debt already recorded in the auth schema. This session did not change contact storage.
+- Preserve both existing `TODO(human)` markers: realtime socket authentication and the web Pill tone decision. I22 records the socket-ticket design, but the marker was not changed.
+- No new third-party accounts or secrets are required by this users slice. See `docs/SERVICES.md` for later integrations.
 
----
-
-## Wiring: what a slice looks like from here
-
-The screens exist, so every remaining web step is **wiring, not building**.
-`56 files` import from `src/lib/mock/`. Per slice:
-
-1. **backend** — `<module>.schema.ts` in its own `pgSchema` → `.repo.ts` →
-   `.service.ts` → `.controller.ts` with Swagger-decorated DTOs →
-   `*.admin.controller.ts` behind `AdminGuard` → Vitest. Then
-   `bun run db:generate`, review the SQL, `bun run db:migrate`.
-2. **web** — `bun run api:gen`, add `features/<x>/use-<x>.ts` TanStack Query
-   hooks calling through `src/lib/api/client.ts`, swap the screen's import from
-   `lib/mock/<x>` to the hook.
-3. **web** — delete `src/lib/mock/<x>.ts`. **That file disappearing is how the
-   slice is known to be finished.**
-
-Loading, empty and error states already exist on every screen — `Skeleton`,
-`EmptyState` and `Notice` are built and on `/design`.
-
----
-
-## Open `TODO(human)` — Jaco's, not yours
-
-Two are open, which breaks the one-at-a-time rule:
-
-- `backend/src/realtime/realtime.gateway.ts` — **how a socket authenticates.**
-  The session is an httpOnly cookie and a WebSocket upgrade is not subject to
-  CORS, so this is a security decision, not a plumbing one. Every realtime
-  handler in steps 3.1 and 5.1 depends on it.
-- `web/src/components/ui/pill.tsx` — whether pill tones should be semantic
-  (`info`/`trust`) rather than presentational (`dark`/`light`). Three later
-  components (`AssuranceRow`, `Notice`, `SheetOption`) all went semantic, so
-  the pattern now has evidence behind it.
-
----
-
-## Known debt and deliberate deviations
-
-- **Admin screens are deliberately lagging.** Each module's `/admin/*`
-  endpoints get built with the module; the queues get built when there is
-  content to moderate.
-- **The map needs a token.** `NEXT_PUBLIC_MAPBOX_TOKEN` in `web/.env`. Without
-  it `MapSurface` falls back to a drawn placeholder rather than a broken image.
-- **Photos are gradient placeholders** everywhere. Real assets go in
-  `web/public/mock/`.
-- **`as Route` casts defeat typed routes.** Template-literal paths need the
-  cast, but it also silences a route that does not exist — one was shipped
-  before its route existed and the build stayed green.
-- **Mock timers stand in for server events.** Amara accepting a plan, the other
-  side confirming arrival. Deliberate: a "simulate" button would be scaffolding
-  the real flow never has. They become socket events.
-- **No `lib/api` usage yet.** `client.ts` and a placeholder `schema.d.ts` exist
-  so the seam compiles.
-- **Privy credentials are needed before 1.2 can start** — see `docs/SERVICES.md`.
-- **The admin console has one screen.** Sign-in works; the queues get built
-  with the modules that feed them (`DECISIONS.md` I23 — every step now ships a
-  UI you can click).
-- **No admin-user management endpoints.** `AdminService.createAdmin` exists;
-  admins are seeded by hand until 7.1.
-- **The Socket.io gateway does not authenticate yet** — that is the open
-  `TODO(human)`.
-
----
-
-## Where the detail is
-
-| Question | File |
-|---|---|
-| What is the system meant to be? | `docs/architecture.md` |
-| What has been done, and what is next? | `docs/build-plan.md` (the checkboxes) |
-| Why is it like this? | `docs/DECISIONS.md` |
-| What accounts and keys do we need? | `docs/SERVICES.md` |
-| What broke, and what nearly did? | `<repo>/docs/learning-log.md` |
-| What are the rules for this repo? | `<repo>/CLAUDE.md` |
-| What exactly changed, and when? | `git log` in each repo |
-
-`web/docs/learning-log.md` is the longest and most useful of these — it records
-the one thing most likely to break for each step built so far.
+Detailed reasoning lives in `docs/DECISIONS.md`; repo-specific explanations and
+questions live in `docs/learning-log.md`.

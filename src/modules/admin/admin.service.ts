@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 
+import type { Transaction } from '../../common/db';
 import { RateLimitService } from '../../common/rate-limit';
 import { AdminRepo, type AuditEntryInput } from './admin.repo';
 import type { AdminRole, AdminUser } from './admin.schema';
@@ -220,8 +221,8 @@ export class AdminService {
   }
 
   /** Exposed so other modules can write their own audit rows (rule 3). */
-  async audit(entry: AuditEntryInput): Promise<void> {
-    await this.repo.recordAudit(entry);
+  async audit(entry: AuditEntryInput, transaction?: Transaction): Promise<void> {
+    await this.repo.recordAudit(entry, transaction);
   }
 
   private issueChallenge(adminUserId: string, enrolling: boolean): string {

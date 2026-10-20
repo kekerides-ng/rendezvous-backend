@@ -13,7 +13,7 @@ import 'dotenv/config';
 import 'reflect-metadata';
 
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 
 import cookieParser from 'cookie-parser';
@@ -24,6 +24,7 @@ import { CONFIG, CONFIG_WARNINGS } from './common/config';
 import { REDIS } from './common/redis';
 import { RedisIoAdapter } from './realtime';
 import type { Env } from './common/config/env';
+import { API_PREFIX_EXCLUSIONS, openApiConfig } from './common/http/openapi';
 import { AppExceptionFilter } from './common/http/exception.filter';
 import type { HealthService } from './common/http/health';
 import { HEALTH_SERVICE } from './common/http/health.controller';
@@ -85,23 +86,12 @@ async function bootstrap(): Promise<void> {
   // alongside the public API would tie an internal console's URLs to the
   // public contract's lifecycle for no benefit.
   app.setGlobalPrefix('v1', {
-    exclude: ['health', 'health/live', 'admin/(.*)'],
+    exclude: API_PREFIX_EXCLUSIONS,
   });
 
   // This spec IS the contract with companion-web and companion-admin: they run
   // `bun run api:gen` against /docs-json (architecture.md §2).
-  const document = SwaggerModule.createDocument(
-    app,
-    new DocumentBuilder()
-      .setTitle('companion-backend')
-      .setDescription(
-        'Time-and-company booking platform. Money is integer micro-USDC held in an on-chain escrow on Base.',
-      )
-      .setVersion('0.0.1')
-      .addCookieAuth('session')
-      .addTag('health')
-      .build(),
-  );
+  const document = SwaggerModule.createDocument(app, openApiConfig());
   SwaggerModule.setup('docs', app, document, {
     jsonDocumentUrl: 'docs-json',
     swaggerOptions: { persistAuthorization: true },

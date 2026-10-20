@@ -2,6 +2,7 @@ import {
   type CanActivate,
   type ExecutionContext,
   Injectable,
+  ForbiddenException,
   SetMetadata,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -70,7 +71,7 @@ export class AdminGuard implements CanActivate {
     // `admin` implies every moderator permission; a moderator is not an admin.
     if (required !== undefined && required.length > 0) {
       const permitted = admin.role === 'admin' || required.includes(admin.role);
-      if (!permitted) throw new UnauthorizedException('Not allowed.');
+      if (!permitted) throw new ForbiddenException('Not allowed.');
     }
 
     request.admin = admin;

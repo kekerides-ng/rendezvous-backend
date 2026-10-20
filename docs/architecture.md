@@ -73,6 +73,9 @@ One NestJS app, one deploy, one Postgres database. Inside, strict modules:
 - Completely separate: `admin_users` with email + password (argon2) + TOTP 2FA. No wallet login.
 - Roles: `admin`, `moderator`. Every admin action writes an `audit_log` row (who, what, before, after, when, IP).
 - Admin routes live under `/admin/*` with `AdminGuard`. CORS for them allows only the admin origin.
+- `/admin/users` lists application users with masked phones, server-side pagination, status filters and timestamp sorting. Both roles may list users and explicitly reveal a phone; a reveal is audited before the number is returned and is never cached.
+- Only the `admin` role can suspend or reinstate a user. Both actions require a reason. Suspension revokes all sessions and prevents sign-in; reinstatement requires a fresh sign-in and never restores old sessions.
+- Sign-in and suspension lock the same user row. Status changes, session revocation and the audit insert share one database transaction, with each module retaining ownership of its tables through its repository/service. Audit failure rolls the change back.
 
 ## 5. Money: Base + USDC escrow
 

@@ -45,7 +45,7 @@ export class AuthController {
   })
   @ApiBody({ type: SignInDto })
   @ApiResponse({ status: 200, type: SignInResponseDto })
-  @ApiErrors(400, 401, 429)
+  @ApiErrors(400, 401, 403, 429)
   async signIn(
     @Body(new ZodValidationPipe(signInSchema)) body: SignInInput,
     @Req() request: AuthedRequest,

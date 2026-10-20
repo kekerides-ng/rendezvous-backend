@@ -67,3 +67,7 @@ export class DbModule implements OnModuleDestroy {
 /** Convenience alias so a module can type its injected db. */
 export type Database<TSchema extends Record<string, unknown> = Record<string, never>> =
   NodePgDatabase<TSchema>;
+
+/** Shared transaction handle; modules still own all access to their tables. */
+export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+export type DbExecutor = Database | Transaction;

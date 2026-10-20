@@ -2,9 +2,10 @@ import type { Server } from 'node:http';
 
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { inject } from './request-without-listener';
+import { API_PREFIX_EXCLUSIONS } from '../src/common/http/openapi';
 import { AppModule } from '../src/app.module';
 import { AppExceptionFilter } from '../src/common/http/exception.filter';
 import type { ReadinessReport } from '../src/common/http/health';
@@ -30,7 +31,7 @@ describe('app (e2e)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication({ logger: false });
     app.useGlobalFilters(new AppExceptionFilter());
-    app.setGlobalPrefix('v1', { exclude: ['health', 'health/live'] });
+    app.setGlobalPrefix('v1', { exclude: API_PREFIX_EXCLUSIONS });
     await app.init();
   });
 
@@ -39,12 +40,13 @@ describe('app (e2e)', () => {
   });
 
   it('serves liveness unconditionally', async () => {
-    const response = await request(server()).get('/health/live').expect(200);
+    const response = await inject(server(), { path: '/health/live' });
+    expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: 'ok' });
   });
 
   it('reports every registered dependency on readiness', async () => {
-    const response = await request(server()).get('/health');
+    const response = await inject(server(), { path: '/health' });
     // 200 with docker compose up, 503 without — either is correct behaviour.
     expect([200, 503]).toContain(response.status);
     const report = response.body as ReadinessReport;
@@ -52,19 +54,21 @@ describe('app (e2e)', () => {
   });
 
   it('echoes the request id the caller sent', async () => {
-    const response = await request(server())
-      .get('/health/live')
-      .set('x-request-id', 'trace-me-123');
+    const response = await inject(server(), {
+      path: '/health/live',
+      headers: { 'x-request-id': 'trace-me-123' },
+    });
     expect(response.headers['x-request-id']).toBe('trace-me-123');
   });
 
   it('mints a request id when the caller sends none', async () => {
-    const response = await request(server()).get('/health/live');
+    const response = await inject(server(), { path: '/health/live' });
     expect(response.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it('returns the ApiError shape for an unknown route', async () => {
-    const response = await request(server()).get('/v1/does-not-exist').expect(404);
+    const response = await inject(server(), { path: '/v1/does-not-exist' });
+    expect(response.status).toBe(404);
     expect(response.body).toMatchObject({
       code: 'NOT_FOUND',
       requestId: expect.any(String) as unknown,
@@ -72,7 +76,7 @@ describe('app (e2e)', () => {
   });
 
   it('keeps health OUTSIDE the /v1 prefix, so clients pin /v1 without breaking probes', async () => {
-    await request(server()).get('/v1/health').expect(404);
-    await request(server()).get('/health/live').expect(200);
+    expect((await inject(server(), { path: '/v1/health' })).status).toBe(404);
+    expect((await inject(server(), { path: '/health/live' })).status).toBe(200);
   });
 });

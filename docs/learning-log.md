@@ -275,3 +275,38 @@ browser.
 **Deliberately not done.** **1.2 is not ticked**: the build-plan line includes
 an admin users list with suspend, and that screen does not exist yet. The
 backend and web halves are complete and clickable.
+
+---
+
+## 1.2 (admin backend) — suspension is a transaction, not a flag
+
+Added the admin users list, audited phone reveal, and admin-only suspension and
+reinstatement. The list is paginated/filtered/sorted on the server and returns a
+small masked projection. No migration was needed: `users.disabled_at` existed.
+
+**The security gap was on sign-in.** Existing session resolution already rejected
+a disabled user, but token exchange could still create a session for them. It
+now rejects them before updating contacts, linking wallets or issuing a cookie.
+Both suspension and reinstatement revoke sessions; otherwise reinstating someone
+would also resurrect their old cookies.
+
+**The thing most likely to break:** concurrent sign-in and suspension. Checking a
+flag and later inserting a session are two operations unless protected together.
+Both paths lock the same user row inside a transaction. A provider-key advisory
+lock handles concurrent first logins, before a user row exists. The status
+change, revocations and audit insert commit together; `AdminService.audit`
+accepts the transaction while keeping admin-table access inside `AdminRepo`.
+
+The backend now has 137 passing tests, including route/cookie/role validation,
+SQL lock/transaction assertions and rollback when audit storage fails. The
+HTTP harness uses the actual Nest/Express handler in-process without listening.
+This is **not** proof of real database contention: Docker/TCP access was denied
+in this workspace, so the live acceptance pass is recorded in STATUS and 1.2
+stays unchecked. The backend build, typecheck and lint pass.
+
+Questions to try while reviewing:
+
+1. Why does reinstatement revoke sessions even though it enables the account?
+2. What happens if the audit insert fails after the user row was updated?
+3. If sign-in takes the row lock first, what happens to its session when the
+   waiting suspension transaction runs next?

@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 
 import { CONFIG } from '../../common/config';
 import { type Env, requirePrivy } from '../../common/config/env';
+import { AdminModule } from '../admin';
+import { UsersAdminController } from './users.admin.controller';
 import { AuthController } from './auth.controller';
 import { AuthRepo } from './auth.repo';
 import { AuthService } from './auth.service';
@@ -20,7 +22,8 @@ import { SessionGuard } from './session.guard';
  * for everyone (DECISIONS I12).
  */
 @Module({
-  controllers: [AuthController],
+  imports: [AdminModule],
+  controllers: [AuthController, UsersAdminController],
   providers: [
     AuthRepo,
     AuthService,

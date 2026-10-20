@@ -525,3 +525,47 @@ navigation — indistinguishable from being logged out. The admin console has no
 such flow, so nothing is lost by keeping it strict there. User TTL is 30 days
 against admin's 12 hours, for the same reason: one is a consumer app, the other
 is a tool for people with elevated power.
+
+
+### I28 · Suspension is admin-only, reversible, and never restores a session
+**2026-10-20, build-plan 1.2.** Jaco chose admin-only suspension and reinstatement.
+Moderators can list users and reveal a phone, with an audit record, but cannot
+change access. Both destructive actions need an in-page confirmation and a
+trimmed, nonempty reason (maximum 1,000 characters).
+
+**Why revocation as well as `disabled_at`:** the existing session lookup already
+rejected disabled users, but clearing that timestamp alone would revive old
+sessions. Both transitions revoke all sessions; a reinstated user must sign in
+again. Sign-in checks suspension before updating contacts, linking wallets or
+issuing a cookie.
+
+**Why a shared transaction:** status change, session revocation and audit insert
+must all commit or all roll back. `AdminService.audit` accepts a transaction
+handle; the auth module still never imports the admin schema/repository. Sign-in
+and suspension lock the same user row, and initial sign-ins also take a
+provider-key advisory lock so concurrent first logins cannot create two users.
+
+**PII:** the list returns masked phone numbers, never raw contact/profile data.
+An explicit reveal records access before returning the number with `no-store`.
+The UI holds the revealed value only in mounted component state; neither query
+nor mutation results retain it. Logout clears protected caches.
+
+### I29 · A native users table until the table package can be installed
+**2026-10-20.** The users screen uses semantic HTML with server-side filtering,
+sorting and pagination, and TanStack Query for requests. TanStack Table remains
+the intended console stack, but it was not installed and the workspace denied
+package-registry DNS during this session. No dependency or lockfile was faked.
+**Revisit when:** registry access is available and another table needs the shared
+abstraction. This temporary implementation keeps the current slice usable.
+
+### I30 · Generate API clients without booting infrastructure
+**2026-10-20.** `bun run api:export /private/tmp/rendezvous-openapi.json` builds
+the backend and exports real controller metadata without listening or opening
+Postgres/Redis connections. It uses the same OpenAPI configuration and route
+prefix exclusions as production. Its controller list must stay current as new
+modules are added. Frontends can run `openapi-typescript` on that local file.
+**Why:** this workspace denied Docker, local network access and port binding.
+API generation should not require a running database or a listening server.
+The HTTP test harness likewise drives real Express/Nest middleware, guards,
+pipes and JSON responses in-process without a TCP listener. These checks do not
+replace a live database/browser acceptance test.

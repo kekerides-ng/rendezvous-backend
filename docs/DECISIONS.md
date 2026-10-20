@@ -604,3 +604,25 @@ brand artwork and tokens are the reference when updating either surface.
 
 Supersedes the old admin-only blue-theme rationale. Destructive actions retain
 semantic danger styling so their consequences remain clear within the brand.
+
+
+### I32 · Pin the contract toolchain and make deployment metadata executable
+**2026-10-20, step 0.5 preparation.** Foundry v1.8.5 and Solidity 0.8.37 are exact
+pins. The EVM target is explicitly Cancun, so adopting a current compiler does
+not silently change the opcode target. OpenZeppelin v5.7.0 and forge-std v1.17.0
+are pinned as Git submodules to their official release commits, recorded in the
+contracts README and staged Git links. No floating branch or `latest` dependency
+is used.
+
+The deployment format is a JSON Schema with an executable Ajv check: only the
+six agreed fields, nonzero EVM addresses, positive safe block numbers, compiler
+ABI structure and matching Base/Base Sepolia filenames. No fictional network
+artifact is created; the production release directory is empty until 4.1. This
+prevents examples from being mistaken for deployment truth by later chain:sync.
+
+The common check command validates metadata, formatting, compilation and Solidity
+tests; CI uses the same command with its larger fuzz profile. Local metadata
+checks pass, but Foundry is absent and GitHub downloads are blocked in the agent
+workspace. No Forge result, completed 0.5 checkbox or contracts implementation
+commit is claimed before those required checks run. This is a tool-access limit,
+not a need for a chain account or real funds.

@@ -100,6 +100,16 @@ Where each is primary:
 
 A card or a bank transfer is an **on-ramp**, not a payment method for a booking: it buys USDC into the user's wallet, and the booking is funded from that wallet. Nothing in the booking flow charges a card.
 
+### Contracts foundation
+
+The contracts repo pins Foundry v1.8.5, Solidity 0.8.37 (Cancun EVM target),
+OpenZeppelin v5.7.0 and forge-std v1.17.0. Dependency Git links pin exact commits;
+local and CI checks use the same `bun run check` command. Metadata validation
+runs independently of Foundry. Deployment artifacts follow
+`contracts/deployments/schema.json`: `chainId`, `escrow`, `usdc`, `deployBlock`,
+`version`, `abi`, with network filenames matched to chain IDs. Real deployment
+files are written only after a deployment in 4.1; the scaffold publishes none.
+
 ### Escrow contract (`companion-contracts/src/Escrow.sol`)
 - Holds only USDC (address set at deploy, immutable).
 - Built on OpenZeppelin: `SafeERC20`, `ReentrancyGuard`, `AccessControl`, `Pausable`, `EIP712`.

@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-20 (admin aligned with the web brand; live acceptance pending).**
+**Last updated: 2026-10-20 (0.5 contracts foundation complete and validated).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -27,7 +27,7 @@ live database/browser acceptance pass below.**
 | `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. New `/admin/users` list, phone reveal, suspend and reinstate endpoints. 141 tests pass, including 11 users HTTP-contract checks. Typecheck, lint and build pass. No schema migration needed for this slice. |
 | `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Everything after sign-in is mock. API types regenerated; typecheck/lint and 393 tests pass. |
 | `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`, now using the web's Rendezvous brand. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate. 34 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
-| `contracts` | Documentation only. 0.5 still open. |
+| `contracts` | **0.5 complete.** Foundry/compiler pins, initialized exact OpenZeppelin/forge-std Git links, six-decimal test token and SafeERC20 smoke/fuzz tests, deployment JSON Schema/validator and CI. Formatting/build pass; 30 metadata tests and 2 Solidity tests pass, including 1,000 fuzz cases under the CI profile. No escrow implementation or deployed contract yet. |
 
 ### Shared Rendezvous identity
 
@@ -59,9 +59,33 @@ No browser was available to the automation tool for a live visual review.
 
 ## Next actions
 
-1. Finish the live acceptance pass for **1.2**, then tick it in all four build-plan copies. Do not start KYC in this session.
-2. **0.5 contracts**: Foundry scaffold, pinned OpenZeppelin, deployment format; before 4.1.
-3. **0.6 CI**, then **1.3 KYC**, following the build plan.
+1. Next implementation: **0.6 app CI**, then **1.3 KYC**. The contracts workflow already exists from 0.5.
+2. Finish the remaining live acceptance pass for **1.2**, then tick it in all four build-plan copies.
+3. **4.1 escrow implementation** stays in Phase 4; the foundation is ready for it now.
+
+### Contracts foundation verification
+
+The user installed Foundry and initialized the pinned submodules. The full
+`bun run check` now passes: tool/dependency pins, 30 metadata tests, artifact
+validation, Forge formatting/build and both Solidity tests. A separate
+`FOUNDRY_PROFILE=ci forge test -vvv` also passes with 1,000 fuzz cases. The GitHub
+workflow is defined but was not run on GitHub; no remote was added or pushed.
+Foundry is installed in `~/.foundry/bin`; that directory must be on PATH.
+
+From `contracts/` after a fresh clone:
+
+```bash
+foundryup --install v1.8.5
+git submodule update --init --recursive
+bun install --frozen-lockfile
+bun run check
+```
+
+The Solidity tests validate a six-decimal mock token and SafeERC20 transfers.
+They do not validate escrow business logic: `src/` and `script/` remain reserved
+for 4.1. No escrow, deployment script, network deployment or release tag exists.
+The deployment directory contains the schema/docs, never fake live addresses.
+No RPC account, wallet or funds are needed for the local foundation checks.
 
 ### Live acceptance pass for 1.2
 

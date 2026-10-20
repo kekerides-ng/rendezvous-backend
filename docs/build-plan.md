@@ -17,7 +17,7 @@ Mark done with `[x]`.
 - [x] **0.2 backend:** common pieces: DB module + column helpers (`id`, `timestamps`, `usdc` bigint, `geographyPoint`), event emitter, BullMQ, Socket.io gateway skeleton, rate limiter.
 - [x] **0.3 web:** `create-next-app` with Bun, Tailwind, TanStack Query, `api:gen` script, PWA manifest + service worker (Serwist), app shell with tabs.
 - [x] **0.4 admin:** `create-next-app` with Bun, Tailwind, `api:gen` script, sidebar layout, login page shell.
-- [ ] **0.5 contracts:** `forge init`, OpenZeppelin, folder layout, `deployments/` format, CI with `forge test` + `forge fmt --check`.
+- [x] **0.5 contracts:** Foundry scaffold, pinned OpenZeppelin/forge-std, folder layout, `deployments/` schema and validator, CI with `forge test` + `forge fmt --check`. *Local checks pass: 30 metadata tests, 2 Solidity tests and 1,000 CI-profile fuzz cases.*
 - [ ] **0.6 CI** in each app repo: typecheck, lint, test.
 
 ## Phase 1 — Identity

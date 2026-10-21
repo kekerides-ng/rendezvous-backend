@@ -26,7 +26,7 @@ Mark done with `[x]`.
 - [ ] **1.3 KYC:** provider-neutral identity submission and verified ID/selfie result, 18+ check → web verify flow → admin KYC review queue. Youverify may be selected with `KYC_PROVIDER=youverify`; `off` keeps the rest of the app moving while this is deferred.
 
 ## Phase 2 — Profiles and discovery
-- [ ] **2.1 Media:** R2 pre-signed uploads, moderation status → web upload → admin moderation queue. *Backend, web and admin implementation landed with local MinIO; live migration/upload/moderation acceptance is pending.*
+- [ ] **2.1 Media:** R2 pre-signed uploads → web photo upload and removal. A technically valid upload is available immediately; no admin photo approval. *Implementation landed with local MinIO; live migration/upload acceptance is pending.*
 - [ ] **2.2 Profiles + discovery:** profile, availability, PostGIS search → web discover + profile pages → admin profile view/edit/hide.
 
 ## Phase 3 — Conversations

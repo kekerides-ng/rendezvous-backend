@@ -26,7 +26,13 @@ export class MediaRepo {
         .where(
           and(
             eq(assets.userId, userId),
-            inArray(assets.status, ['uploading', 'pending_review', 'approved']),
+            inArray(assets.status, [
+              'uploading',
+              'pending_review',
+              'approved',
+              'rejected',
+              'available',
+            ]),
             // An abandoned upload reservation cannot occupy a slot forever.
             sql`(${assets.status} <> 'uploading' or ${assets.createdAt} > now() - interval '1 hour')`,
           ),
@@ -64,37 +70,16 @@ export class MediaRepo {
     return row;
   }
 
-  async setStatus(id: string, status: MediaStatus, reviewedBy?: string, reason?: string) {
+  async setStatus(id: string, status: MediaStatus) {
     const [row] = await this.db
       .update(assets)
       .set({
         status,
-        reviewedBy,
-        reason,
-        reviewedAt: reviewedBy ? new Date() : null,
         updatedAt: new Date(),
       })
       .where(eq(assets.id, id))
       .returning();
     if (!row) throw new NotFoundException('Photo not found.');
     return row;
-  }
-
-  async queue(page: number, pageSize: number) {
-    return this.db.transaction(
-      async (tx) => {
-        const where = eq(assets.status, 'pending_review');
-        const [total] = await tx.select({ count: count() }).from(assets).where(where);
-        const items = await tx
-          .select()
-          .from(assets)
-          .where(where)
-          .orderBy(asc(assets.createdAt), asc(assets.id))
-          .limit(pageSize)
-          .offset((page - 1) * pageSize);
-        return { items, total: total?.count ?? 0, page, pageSize };
-      },
-      { isolationLevel: 'repeatable read', accessMode: 'read only' },
-    );
   }
 }

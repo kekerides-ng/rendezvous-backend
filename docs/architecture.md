@@ -8,11 +8,11 @@ Last major change: moved to four separate repos (contracts split out), modular m
 A Nigeria-first companionship app. Verified adults book each other's time for dinner dates, event plus-ones, city tours, activities and coffee. Payment is locked in an on-chain USDC escrow until the meeting is confirmed.
 
 **Guardrails enforced in code**
-- No sexual services. Terms, copy, categories and moderation all say so.
+- No sexual services. Terms, copy and fixed booking categories say so; reports are handled in the later safety slice.
 - 18+ only, proven by a provider-verified document date of birth.
 - Fixed categories: `DINNER_DATE`, `EVENT_PLUS_ONE`, `CITY_TOUR`, `ACTIVITY_PARTNER`, `COFFEE_CONVERSATION`.
 - First booking between two users must be at a public venue.
-- No paid unlock of private media. All media is moderated.
+- No paid unlock of private media. Profile photos are available after technical upload validation, without manual approval.
 - SOS, trip share and report on every live session.
 
 ## 2. The four repos
@@ -63,19 +63,7 @@ One NestJS app, one deploy, one Postgres database. Inside, strict modules:
 | auth | users, sessions, wallets | Login via embedded-wallet provider; own session cookie |
 | kyc | verifications | provider-neutral verified ID and adult result; currently paused |
 | profile | profiles, availability, base_location (PostGIS) | Discovery search |
-| media | assets | R2 pre-signed uploads, moderation before publish |
-
-**Media step 2.1:** An authenticated user reserves a JPEG, PNG or WebP photo
-(1 byte–8 MB, at most six active photos), receives a five-minute S3 SigV4 PUT
-URL and uploads directly to private MinIO locally or R2 in deployment. The
-backend checks object length, MIME type and image magic bytes before moving it
-to `pending_review`. The owner and staff receive short-lived private GET URLs;
-there is no public image route yet. Admins and moderators approve or reject
-with a reason, atomically writing the result and audit entry. Only approved
-assets may be published by the future profile/discovery module. The local
-MinIO bucket is created on first reservation; browser PUT CORS is restricted
-to `WEB_ORIGIN` in Compose. Production R2 needs a precreated bucket and a CORS
-rule for that web origin. The live storage path still needs acceptance testing.
+| media | assets | R2 pre-signed uploads, available after upload confirmation |
 | messaging | conversations, messages, offers | Socket.io; keyword moderation |
 | booking | bookings, check_ins | State machine |
 | escrow | chain_events, chain_cursor, escrow_records | Chain watcher + operator transactions |
@@ -83,6 +71,17 @@ rule for that web origin. The live storage path still needs acceptance testing.
 | reviews | reviews | Two-sided, after completion |
 | notifications | push_subscriptions, delivery_log | Web Push + SMS + email |
 | admin | admin_users, admin_sessions, audit_log, settings | Separate admin auth |
+
+**Media step 2.1:** An authenticated user reserves a JPEG, PNG or WebP photo
+(1 byte–8 MB, at most six active photos), receives a five-minute S3 SigV4 PUT
+URL and uploads directly to private MinIO locally or R2 in deployment. The
+backend checks object length, MIME type and image magic bytes before marking
+the photo `available`. This status means the upload is technically valid; there
+is no manual content review. The owner receives short-lived private GET URLs;
+profile/discovery publication arrives in step 2.2. The local MinIO bucket is
+created on first reservation; browser PUT CORS is restricted to `WEB_ORIGIN`
+in Compose. Production R2 needs a precreated bucket and CORS for that origin.
+The live storage path still needs acceptance testing.
 
 **Module rules**
 - Each module's tables live in its own Postgres schema (`pgSchema('booking')`), so modules can be split into services later.

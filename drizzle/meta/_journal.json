@@ -43,6 +43,13 @@
       "when": 1792612340198,
       "tag": "0005_orange_baron_zemo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792613539147,
+      "tag": "0006_publish_existing_photos",
+      "breakpoints": true
     }
   ]
 }

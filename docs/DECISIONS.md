@@ -728,3 +728,13 @@ narrow Node-crypto S3 SigV4 presigner instead of adding the AWS SDK with an
 unreproducible lockfile. It is covered by unit tests, but no live S3 request
 could run because Docker access was denied. Keep 2.1 open until the real
 MinIO/browser flow and a production build are accepted.
+
+### I40 · Photos need no manual approval
+**2026-10-21.** Jaco clarified that every valid uploaded picture is allowed.
+The manual media review queue, admin route, reasons and approval gate were
+removed. Upload confirmation now marks a photo `available` immediately after
+object metadata and image-byte checks. Migration `0006` publishes earlier
+pending, rejected and approved uploads and clears their old review fields. The six-photo limit,
+supported formats, size bound and private object storage remain. Discovery
+still needs step 2.2 to read these assets. This supersedes the moderation
+parts of I39; its storage design remains active.

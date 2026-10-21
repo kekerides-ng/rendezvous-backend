@@ -24,7 +24,6 @@ export const EVENTS = {
   },
   media: {
     uploaded: 'media.uploaded',
-    moderated: 'media.moderated',
   },
   messaging: {
     sent: 'messaging.sent',

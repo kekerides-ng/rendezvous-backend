@@ -91,7 +91,7 @@ server API key out of Git and client code.
 
 ## 4 · Cloudflare R2 — photo storage ⬜
 
-**What it does:** profile photos, with pre-signed uploads and moderation before publish
+**What it does:** profile photos with pre-signed uploads, available after upload confirmation
 (`architecture.md` §3, media module).
 
 **First needed:** build-plan **2.1**. **MinIO stands in locally**, so this is only needed

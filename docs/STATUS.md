@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-21 (2.1 media implementation; live acceptance pending).**
+**Last updated: 2026-10-21 (photo approval removed; live upload acceptance pending).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -21,15 +21,16 @@ a remote or push unless asked. Never format Markdown with Prettier. Leave
 **Real user sign-in and the admin users slice are implemented. KYC age policy,
 status, storage and admin review remain, but submission is deferred and
 `KYC_PROVIDER=off` is the default. Most user app features
-continue to read mock data. Photo uploads and admin moderation are implemented,
-but the new media migration and direct MinIO upload need a live acceptance pass.
+continue to read mock data. Photo uploads become available on confirmation
+without admin approval, but media migrations and the direct MinIO upload need
+a live acceptance pass.
 Steps 1.2, 1.3 and 2.1 remain unchecked.**
 
 | Repo | Current state |
 |---|---|
-| `backend` | Existing auth/admin/KYC modules plus `media.assets`, signed private upload/read URLs, object checks, quota, moderation queue and audited decisions. Migration `0005` is generated but not applied here. KYC remains off by default. |
-| `web` | Real phone sign-in and photo upload in sign-up/edit screens. A submitted photo waits for admin review; rejected photos show a reason. Other profile fields and discovery still use mocks. `/verify` remains paused. |
-| `admin` | Real auth, users management, KYC review and a photo moderation queue at `/media` with preview and reason-required decisions. Production build remains unverified in this workspace. |
+| `backend` | Existing auth/admin/KYC modules plus `media.assets`, signed private upload/read URLs, object checks and quota. Upload confirmation marks a photo available immediately. Migrations `0005` and `0006` are generated but not applied here. KYC remains off by default. |
+| `web` | Real phone sign-in and photo upload/removal in sign-up/edit screens. Other profile fields and discovery still use mocks. `/verify` remains paused. |
+| `admin` | Real auth, users management and KYC review. The photo review route and sidebar item were removed at Jaco's request. Production build remains unverified in this workspace. |
 | `contracts` | **0.5 complete.** Foundry/compiler pins, initialized exact OpenZeppelin/forge-std Git links, six-decimal test token and SafeERC20 smoke/fuzz tests, deployment JSON Schema/validator and CI. Formatting/build pass; 30 metadata tests and 2 Solidity tests pass, including 1,000 fuzz cases under the CI profile. No escrow implementation or deployed contract yet. |
 
 ### KYC progress (1.3 remains open)
@@ -55,18 +56,19 @@ credentials or dashboard setup are required to continue other work.
 
 ### Media implementation (2.1 live acceptance pending)
 
-The backend has `media.assets` and migration `0005`, five-minute signed PUT
+The backend has `media.assets` and migrations `0005`/`0006`, five-minute signed PUT
 URLs, an eight-MB JPEG/PNG/WebP limit, six active-photo slots, object metadata
-and magic-byte checks, private signed GET URLs, and an admin queue. Review
-decisions require a reason and commit with their audit row. The web photo
-picker in sign-up and profile edit now uploads files; admin `/media` previews
-and reviews them. Approved photos are not yet used in discovery, which is 2.2.
+and magic-byte checks, and private signed GET URLs. A confirmed photo becomes
+available immediately; there is no admin approval. Migration `0006` makes
+earlier pending/rejected uploads available too. The web photo picker in sign-up
+and profile edit uploads and removes files. Photos are not yet used in
+discovery, which is 2.2.
 Local MinIO CORS is bound to `WEB_ORIGIN`; the bucket is made on first use.
 `backend/.env` uses `S3_REGION=us-east-1` for local MinIO; R2 uses `auto`.
 
 The Docker socket is denied in this workspace, Postgres `localhost:5433` refused
 connection, and the package registry could not be reached. The narrow S3
-SigV4 presigner and media service have unit tests, but neither migration `0005`
+SigV4 presigner and media service have unit tests, but neither media migration
 nor the browser-to-MinIO PUT has run live. Do not tick 2.1 yet.
 
 ### App CI (0.6)
@@ -115,7 +117,7 @@ No browser was available to the automation tool for a live visual review.
 
 ## Next actions
 
-1. Apply migration `0005` and run the media acceptance below. Tick **2.1** only after the live path works.
+1. Apply migrations `0005` and `0006`, then run the media acceptance below. Tick **2.1** only after the live path works.
 2. Finish the remaining live acceptance pass for **1.2**, then tick it in all four build-plan copies.
 3. Build **2.2 profiles/discovery** after media acceptance. KYC 1.3 remains deferred and `KYC_PROVIDER=off`; paid plans remain gated.
 4. **4.1 escrow implementation** stays in Phase 4; the foundation is ready for it now.
@@ -123,9 +125,9 @@ No browser was available to the automation tool for a live visual review.
 ### Live acceptance pass for 2.1
 
 1. In `backend/`, run `docker compose up -d`, `bun run db:migrate`, then restart the backend. Confirm `S3_REGION=us-east-1` for local MinIO and `WEB_ORIGIN=http://localhost:3000`.
-2. Sign in at the web app; choose a small JPEG/PNG/WebP in sign-up or Profile → Edit. Confirm the upload appears as awaiting review, survives a refresh, and that the direct PUT to port 9002 succeeds.
-3. At `http://localhost:3001/media`, approve one photo with a reason and reject another. Confirm the owner sees the rejection reason and can remove the photo. Check `admin.audit_log` contains the decision without image data.
-4. Try an unsupported file, an oversized file and a seventh active photo; each must be refused. Confirm a failed upload does not occupy a slot forever. Check the admin production build with network access.
+2. Sign in at the web app; choose a small JPEG/PNG/WebP in sign-up or Profile → Edit. Confirm the upload appears immediately, survives a refresh, and that the direct PUT to port 9002 succeeds. No admin step is involved.
+3. Remove a photo and confirm it disappears after refresh. Try an unsupported file, an oversized file and a seventh active photo; each must be refused. Confirm a failed upload does not occupy a slot forever.
+4. Check the web and admin production builds with network access.
 
 ### Contracts foundation verification
 

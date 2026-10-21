@@ -39,7 +39,7 @@ export class MediaController {
 
   @Get()
   @Header('Cache-Control', 'no-store')
-  @ApiOperation({ summary: 'List your photo upload and moderation states' })
+  @ApiOperation({ summary: 'List your uploaded photos and their availability' })
   @ApiResponse({ status: 200, type: AssetListDto })
   @ApiErrors(401)
   mine(@Req() request: AuthedRequest) {

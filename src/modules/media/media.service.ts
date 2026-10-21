@@ -1,14 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import {
-  ConflictException,
-  ForbiddenException,
-  HttpException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { RateLimitService } from '../../common/rate-limit';
-import { AdminService } from '../admin';
-import type { AdminRequest } from '../admin/admin.guard';
 import { checkedPhoto } from './domain/media';
 import { MediaRepo } from './media.repo';
 import type { Asset } from './media.schema';
@@ -19,7 +11,6 @@ export class MediaService {
   constructor(
     private readonly repo: MediaRepo,
     private readonly storage: MediaStorage,
-    private readonly admins: AdminService,
     private readonly rateLimit: RateLimitService,
   ) {}
 
@@ -27,10 +18,9 @@ export class MediaService {
     return {
       id: row.id,
       userId: row.userId,
-      status: row.status,
+      status: row.status === 'uploading' ? 'uploading' : 'available',
       contentType: row.contentType,
       bytes: row.bytes,
-      reason: row.status === 'rejected' ? row.reason : null,
       url: row.status === 'uploading' ? null : this.storage.sign('GET', row.objectKey),
       createdAt: row.createdAt.toISOString(),
     };
@@ -69,7 +59,7 @@ export class MediaService {
       if (locked.userId !== userId) throw new NotFoundException('Photo not found.');
       if (locked.status !== 'uploading')
         throw new ConflictException('This photo was already submitted.');
-      return repo.setStatus(id, 'pending_review');
+      return repo.setStatus(id, 'available');
     });
     return this.present(updated);
   }
@@ -87,41 +77,5 @@ export class MediaService {
       await repo.setStatus(id, 'deleted');
     });
     return { removed: true };
-  }
-
-  async queue(page: number, pageSize: number) {
-    const result = await this.repo.queue(page, pageSize);
-    return { ...result, items: result.items.map((row) => this.present(row)) };
-  }
-
-  async review(id: string, action: 'approve' | 'reject', reason: string, request: AdminRequest) {
-    if (!request.admin) throw new ForbiddenException('Not signed in.');
-    const actorId = request.admin.id;
-    const row = await this.repo.transaction(async (repo, tx) => {
-      const before = await repo.lock(id);
-      if (before.status !== 'pending_review')
-        throw new ConflictException('This photo is no longer awaiting review.');
-      const after = await repo.setStatus(
-        id,
-        action === 'approve' ? 'approved' : 'rejected',
-        actorId,
-        reason,
-      );
-      await this.admins.audit(
-        {
-          adminUserId: actorId,
-          action: `media.${action}`,
-          subjectType: 'asset',
-          subjectId: id,
-          before: { status: before.status },
-          after: { status: after.status, reason },
-          ip: request.ip,
-          userAgent: request.get('user-agent'),
-        },
-        tx,
-      );
-      return after;
-    });
-    return this.present(row);
   }
 }

@@ -2,7 +2,10 @@ import { index, integer, pgSchema, text, timestamp } from 'drizzle-orm/pg-core';
 import { id, reference, timestamps } from '../../common/db/columns';
 
 export const mediaSchema = pgSchema('media');
-export type MediaStatus = 'uploading' | 'pending_review' | 'approved' | 'rejected' | 'deleted';
+// pending_review/rejected are legacy values from 0005. Migration 0006
+// publishes them; the service now writes only uploading/available/deleted.
+export type MediaStatus =
+  'uploading' | 'pending_review' | 'approved' | 'rejected' | 'available' | 'deleted';
 
 export const assets = mediaSchema.table(
   'assets',
@@ -13,6 +16,7 @@ export const assets = mediaSchema.table(
     contentType: text('content_type').notNull(),
     bytes: integer('bytes').notNull(),
     status: text('status').$type<MediaStatus>().notNull().default('uploading'),
+    // Legacy review columns stay because 0005 may already be applied.
     reason: text('reason'),
     reviewedBy: reference('reviewed_by'),
     reviewedAt: timestamp('reviewed_at', { withTimezone: true }),

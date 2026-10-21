@@ -437,3 +437,13 @@ have unit coverage. Local MinIO CORS is limited to `WEB_ORIGIN`. Migration
 `0005` and the browser upload path still need a live pass: this workspace
 cannot reach the Docker socket and Postgres on port 5433 refused connection.
 Do not tick 2.1 until that acceptance succeeds.
+
+## Photo approval removed (2026-10-21)
+
+Jaco does not want a person approving each profile picture. The API now marks
+a technically valid upload `available` when confirmation succeeds. The admin
+media controller, queue and screen are gone, as are the web's pending/rejected
+notices. Migration `0006` publishes earlier reviewed or pending uploads without
+rewriting migration `0005`, which may already have run. Storage remains private;
+step 2.2 will decide how approved photos are exposed in discovery. The format,
+size, object-length and magic-byte checks still protect the upload path.

@@ -12,7 +12,7 @@ export const QUEUES = {
   chainBackfill: 'chain-backfill',
   /** architecture.md §6: releases a booking 6 h after the session ends. */
   keeperRelease: 'keeper-release',
-  /** Keyword moderation on messages and media. */
+  /** Keyword moderation on messages. */
   moderation: 'moderation',
 } as const;
 

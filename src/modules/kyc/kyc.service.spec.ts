@@ -2,8 +2,11 @@ import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminService } from '../admin';
 import type { AdminRequest } from '../admin/admin.guard';
+import type { AuthService } from '../auth/auth.service';
+import type { RateLimitService } from '../../common/rate-limit';
 import type { KycRepo } from './kyc.repo';
 import { KycService } from './kyc.service';
+import type { YouverifyClient } from './youverify';
 
 const verification = {
   id: 'verification-1',
@@ -24,9 +27,20 @@ describe('KYC service', () => {
     lock: vi.fn(),
     reject: vi.fn(),
     transaction: vi.fn(),
+    begin: vi.fn(),
+    complete: vi.fn(),
   };
   const admins = { audit: vi.fn() };
-  const service = new KycService(repo as unknown as KycRepo, admins as unknown as AdminService);
+  const auth = { recordKycResult: vi.fn() };
+  const rateLimit = { consume: vi.fn() };
+  const youverify = { verifyNin: vi.fn() };
+  const service = new KycService(
+    repo as unknown as KycRepo,
+    admins as unknown as AdminService,
+    auth as unknown as AuthService,
+    rateLimit as unknown as RateLimitService,
+    youverify as unknown as YouverifyClient,
+  );
   const request = {
     admin: { id: 'admin-1' },
     ip: '127.0.0.1',
@@ -37,8 +51,92 @@ describe('KYC service', () => {
     repo.forUser.mockResolvedValue(verification);
     repo.lock.mockResolvedValue(verification);
     repo.reject.mockResolvedValue({ ...verification, status: 'rejected' });
+    repo.begin.mockResolvedValue(true);
+    rateLimit.consume.mockResolvedValue({ allowed: true });
     repo.transaction.mockImplementation((work: (r: typeof repo, t: typeof tx) => unknown) =>
       work(repo, tx),
+    );
+  });
+  it('does not call the provider when a check is already in progress', async () => {
+    repo.begin.mockResolvedValue(false);
+    await expect(
+      service.verifyNin('user-1', {
+        nin: '11111111111',
+        firstName: 'Ada',
+        lastName: 'Okonkwo',
+        dateOfBirth: '1990-04-04',
+        selfie: 'data:image/jpeg;base64,YWJj',
+        consent: true,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(youverify.verifyNin).not.toHaveBeenCalled();
+  });
+  it('persists a provider-checked adult and the auth age stamp together', async () => {
+    const input = {
+      nin: '11111111111',
+      firstName: 'Ada',
+      lastName: 'Okonkwo',
+      dateOfBirth: '1990-04-04',
+      selfie: 'data:image/jpeg;base64,YWJj',
+      consent: true as const,
+    };
+    youverify.verifyNin.mockResolvedValue({
+      success: true,
+      data: {
+        id: 'check123',
+        status: 'found',
+        country: 'NG',
+        type: 'nin',
+        idNumber: input.nin,
+        isConsent: true,
+        dataValidation: true,
+        selfieValidation: true,
+        allValidationPassed: true,
+        dateOfBirth: input.dateOfBirth,
+        validations: {
+          data: {
+            firstName: { validated: true },
+            lastName: { validated: true },
+            dateOfBirth: { validated: true },
+          },
+          selfie: { selfieVerification: { match: true } },
+        },
+      },
+    });
+    expect(await service.verifyNin('user-1', input)).toEqual({ status: 'verified' });
+    expect(repo.complete).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        status: 'verified',
+        providerApproved: true,
+        providerJobId: 'check123',
+      }),
+    );
+    expect(auth.recordKycResult).toHaveBeenCalledWith(
+      'user-1',
+      new Date('1990-04-04T00:00:00.000Z'),
+      tx,
+    );
+  });
+  it('leaves a retryable review state when the provider is unavailable', async () => {
+    youverify.verifyNin.mockRejectedValue(new Error('secret upstream detail'));
+    await expect(
+      service.verifyNin('user-1', {
+        nin: '11111111111',
+        firstName: 'Ada',
+        lastName: 'Okonkwo',
+        dateOfBirth: '1990-04-04',
+        selfie: 'data:image/jpeg;base64,YWJj',
+        consent: true,
+      }),
+    ).rejects.toThrow('Identity check is unavailable. Please try again.');
+    expect(repo.complete).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        status: 'review',
+        providerApproved: false,
+        reason: 'provider_unavailable',
+      }),
     );
   });
   it('returns not_started for users without a verification', async () => {

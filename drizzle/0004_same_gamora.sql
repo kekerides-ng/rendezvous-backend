@@ -1,0 +1,1 @@
+ALTER TABLE "kyc"."verifications" ALTER COLUMN "provider_user_id" DROP NOT NULL;

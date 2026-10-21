@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-21 (1.3 Youverify Quick Check API path selected; live flow pending).**
+**Last updated: 2026-10-21 (1.3 direct NIN Quick Check wired; live acceptance pending).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -19,14 +19,14 @@ a remote or push unless asked. Never format Markdown with Prettier. Leave
 ## Where work stopped
 
 **Real user sign-in and the admin users slice are implemented. KYC age policy,
-status, storage and admin review are now wired; Youverify Quick Check submission and verified
-result ingestion still need the sandbox integration. Most user app features
+status, storage and admin review are now wired; direct Youverify NIN submission,
+verified-result ingestion and the web form are implemented. Most user app features
 continue to read mock data. Steps 1.2 and 1.3 remain unchecked.**
 
 | Repo | Current state |
 |---|---|
-| `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. New `/admin/users` list, phone reveal, suspend and reinstate endpoints. 181 tests pass, including Youverify report policy checks. Typecheck, lint and build pass. The KYC table migration is generated but not applied to live Postgres. |
-| `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Most post-sign-in screens remain mock. The profile ID badge and `/verify` now read real KYC status. API types regenerated; typecheck/lint and 399 tests pass. |
+| `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. `/admin/users` list, phone reveal, suspend and reinstate endpoints. Direct Youverify NIN Quick Check request, strict response assessment, per-user budget, pending reservation and decision persistence. KYC migration `0004` is generated but not applied to live Postgres. |
+| `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Most post-sign-in screens remain mock. The profile ID badge reads real KYC status; `/verify` now collects NIN, legal names, DOB, selfie and consent and posts to the backend. API types regenerated. |
 | `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`, now using the web's Rendezvous brand. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate, and a KYC review queue with audited rejection. 34 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
 | `contracts` | **0.5 complete.** Foundry/compiler pins, initialized exact OpenZeppelin/forge-std Git links, six-decimal test token and SafeERC20 smoke/fuzz tests, deployment JSON Schema/validator and CI. Formatting/build pass; 30 metadata tests and 2 Solidity tests pass, including 1,000 fuzz cases under the CI profile. No escrow implementation or deployed contract yet. |
 
@@ -41,23 +41,21 @@ audit entry share one transaction. There is intentionally no manual approval
 endpoint: staff cannot manufacture identity or age evidence. No ID image, number,
 image link or raw provider payload is stored in this module.
 
-The web profile badge now follows the backend's status instead of the old mock
-`ME.verified`; `/verify` explains the current state. The admin console has an
-ID review page. No real user can become verified yet. A vForm report parser and
-server-only report client were built, but the account dashboard shows Quick
-Check and no Workflow Builder. The vForm adapter is not wired to a user flow.
-The implementation path is now Youverify's direct Quick Check API. Exact staging
-endpoint and result shape, selfie evidence, user correlation and persistence to
-`auth.users` are still required. The KYC migration also needs to run against a
-live database. Local tests use mocked database access; no live database, browser
-or Youverify staging verification has been completed.
+The web profile badge follows backend status; `/verify` collects NIN, legal
+names, document DOB, selfie and explicit consent. The backend calls Youverify's
+documented direct NIN Quick Check endpoint and accepts only a returned matching
+NIN, validated names and DOB, selfie match, and adult provider DOB. Partial or
+unknown responses go to review. A per-user pending row and three-per-day rate
+limit protect billable requests. Decision and `auth.users` changes share one
+transaction. The admin console has an ID review page. The KYC migrations still
+need to run against a live database, and a real sandbox response must confirm
+the validation flags before this step is accepted.
 
-The [Youverify ID onboarding guide](https://doc.youverify.co/guides/onboard-by-government-id)
-describes direct API checks using the server key. The dashboard's Quick Check
-area runs checks manually; it is not a vForm configuration screen. A form ID is
-not needed for this path. The API key and public merchant key are configured in
-ignored `backend/.env`; do not copy the secret to client code. Step 1.3 remains
-open until a real staging result confirms the provider fields and age policy.
+The [Youverify NIN API reference](https://doc.youverify.co/api-reference/quickcheck/kyc--nigeria/verify-national-identification-number-nin)
+documents the direct route and fields. A vForm ID and public merchant key are
+not needed. The API secret stays in ignored `backend/.env`; never copy it to
+client code. This workspace cannot resolve the sandbox host or access the
+Docker socket, so no live check or migration was run. Step 1.3 remains open.
 
 ### App CI (0.6)
 
@@ -95,17 +93,17 @@ No browser was available to the automation tool for a live visual review.
 
 ### Verification completed and limits
 
-- Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**181 passed**), `bun run build`.
+- Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**189 passed**), `bun run build`.
 - Admin: typecheck, lint, tests (**34 passed**); these include proxy forwarding, filters, confirmations, role visibility, reveals and logout cleanup.
-- Web: typecheck, lint, tests (**399 passed**). Both API schemas were regenerated from the real controller metadata.
+- Web: typecheck, lint, tests (**402 passed**). Both API schemas were regenerated from the real controller metadata.
 - Backend HTTP tests run the real Nest/Express middleware, cookie parsing, guards, validation and route prefix rules in-process without binding a TCP port. Repository tests exercise Drizzle's real SQL/transaction driver with a fake connection, including audit-failure rollback.
-- **Not verified against live Postgres or in a browser during this session.** Docker socket access, local TCP connections and port binding were denied by the workspace sandbox. Real database lock contention still needs the live check.
+- **Not verified against live Postgres, Youverify or in a browser during this session.** Docker socket access and sandbox DNS were denied by the workspace. Real provider responses and database lock contention still need the live check.
 - **Admin production build remains unverified.** Turbopack's internal port binding was denied. A webpack fallback got past that but could not download Inter from Google Fonts (DNS/network denied). Product fonts/configuration were left intact.
 - TanStack Table could not be downloaded. This screen temporarily uses an accessible native table with the same server-side controls; requests still use TanStack Query. See I29.
 
 ## Next actions
 
-1. Continue **1.3 KYC** with Youverify Quick Check API verification, then web capture and verified-result persistence. Step **0.6 app CI** is complete.
+1. Run the **1.3 KYC** migrations and a consented sandbox NIN check; confirm the actual response flags and adult/underage decisions. Then tick 1.3. Step **0.6 app CI** is complete.
 2. Finish the remaining live acceptance pass for **1.2**, then tick it in all four build-plan copies.
 3. **4.1 escrow implementation** stays in Phase 4; the foundation is ready for it now.
 

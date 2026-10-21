@@ -686,3 +686,17 @@ approval, confirm the staging endpoint and actual response, require provider
 ID and selfie evidence plus document DOB, link the result to the authenticated
 user, and persist only decision metadata. This supersedes I35's chosen capture
 path, not its sandbox default or the fail-closed adult policy.
+
+
+### I37 · Direct NIN check, fail closed until sandbox acceptance
+**2026-10-21.** The current [Youverify NIN Quick Check reference](https://doc.youverify.co/api-reference/quickcheck/kyc--nigeria/verify-national-identification-number-nin)
+documents `POST /v2/api/identity/ng/nin`, the server `token` header, explicit
+consent, and name/DOB/selfie validation inputs. The `/verify` form and backend
+now use that path; the unused vForm client and configuration were removed.
+Approval requires the provider's matching ID and consent, passed name/DOB and
+selfie flags, and a strict adult DOB. A partial or unfamiliar response goes to
+review, never automatic approval. Only decision metadata and an opaque check ID
+persist; `auth.users` is updated in the same transaction. One pending row and
+a three-per-day user budget protect billable calls. The sandbox host and local
+Docker socket are inaccessible in this workspace, so a live provider/database
+acceptance pass remains before checking off 1.3.

@@ -8,6 +8,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { RateLimitService } from '../../common/rate-limit';
+import type { Transaction } from '../../common/db';
 import { hashToken, issueToken } from '../admin/domain/credentials';
 import { AdminService } from '../admin';
 import { type AdminRequest } from '../admin/admin.guard';
@@ -144,5 +145,10 @@ export class AuthService {
 
   async walletsFor(userId: string) {
     return this.repo.walletsFor(userId);
+  }
+
+  /** Called by KYC in its transaction; auth alone owns writes to auth.users. */
+  async recordKycResult(userId: string, birth: Date | null, tx: Transaction): Promise<void> {
+    await new AuthRepo(tx).recordKycResult(userId, birth);
   }
 }

@@ -386,3 +386,23 @@ verification is the selected path. The vForm client remains unconnected; a real
 staging response must establish the correct endpoint and fields before wiring
 submission and automatic approval. This correction does not change the strict
 adult policy or the sandbox-only default.
+
+## Step 1.3 direct NIN implementation (2026-10-21)
+
+The current Youverify Quick Check reference supplies a concrete Nigerian NIN
+route, `POST /v2/api/identity/ng/nin`, with a server `token` header and
+`isSubjectConsent`. The old vForm adapter and config were removed. The web
+`/verify` form now collects legal names, NIN, document DOB and a compressed
+selfie, then sends them only to the backend. The provider response is reduced
+immediately to an opaque check ID, result code, approval and age decision.
+
+Approval requires a found NIN matching the request, Nigerian type/country,
+consent, passed first-name, last-name and DOB validations, a selfie match, and
+a provider DOB matching the submitted date. Missing or unfamiliar flags fail
+closed to review. A proved minor is blocked. The KYC row and auth age stamp
+change in one transaction, and a pending reservation plus Redis budget caps
+billable attempts. Tests cover these boundaries and the web submission.
+
+The sandbox hostname does not resolve in this workspace and Docker's socket is
+denied, so the provider's actual staging response and Postgres migration have
+not been exercised. Step 1.3 remains open for that acceptance pass.

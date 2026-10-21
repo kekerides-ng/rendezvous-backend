@@ -1,8 +1,18 @@
-import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { RateLimitService } from '../../common/rate-limit';
 import { AdminService } from '../admin';
 import type { AdminRequest } from '../admin/admin.guard';
+import { AuthService } from '../auth/auth.service';
+import { documentBirthDate } from './domain/verification';
 import { KycRepo } from './kyc.repo';
 import type { Verification } from './kyc.schema';
+import { assessNin, type NinCheck, YouverifyClient } from './youverify';
 
 const reviewItem = (row: Verification) => ({
   id: row.id,
@@ -20,11 +30,51 @@ export class KycService {
   constructor(
     private readonly repo: KycRepo,
     private readonly admins: AdminService,
+    private readonly auth: AuthService,
+    private readonly rateLimit: RateLimitService,
+    private readonly youverify: YouverifyClient,
   ) {}
 
   async status(userId: string) {
     const row = await this.repo.forUser(userId);
     return { status: row?.status ?? 'not_started' };
+  }
+
+  async verifyNin(userId: string, input: NinCheck & { consent: true }) {
+    const budget = await this.rateLimit.consume('kycCheck', userId);
+    if (!budget.allowed) throw new HttpException('Too many ID checks. Try again tomorrow.', 429);
+    if (!(await this.repo.begin(userId)))
+      throw new ConflictException('This identity check is already complete or in progress.');
+
+    let raw: unknown;
+    try {
+      raw = await this.youverify.verifyNin(input);
+    } catch {
+      await this.repo.complete(userId, {
+        status: 'review',
+        resultCode: 'provider_error',
+        reason: 'provider_unavailable',
+        adult: false,
+        providerApproved: false,
+      });
+      throw new ServiceUnavailableException('Identity check is unavailable. Please try again.');
+    }
+
+    const { evidence, assessment, providerJobId } = assessNin(raw, input);
+    await this.repo.transaction(async (repo, tx) => {
+      await repo.complete(userId, {
+        ...assessment,
+        resultCode: evidence.resultCode,
+        providerApproved: evidence.approved,
+        ...(providerJobId ? { providerJobId } : {}),
+      });
+      await this.auth.recordKycResult(
+        userId,
+        assessment.status === 'verified' ? (documentBirthDate(evidence.dateOfBirth) ?? null) : null,
+        tx,
+      );
+    });
+    return { status: assessment.status };
   }
 
   /** Future offer endpoints must enforce this server-side, not a client badge. */
@@ -50,6 +100,7 @@ export class KycService {
       if (before.status !== 'review')
         throw new ConflictException('This verification is no longer awaiting review.');
       const after = await repo.reject(id, actorId);
+      await this.auth.recordKycResult(before.userId, null, tx);
       await this.admins.audit(
         {
           adminUserId: actorId,

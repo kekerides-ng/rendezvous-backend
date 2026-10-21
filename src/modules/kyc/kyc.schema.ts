@@ -9,7 +9,7 @@ export const verifications = kycSchema.table(
   {
     id: id(),
     userId: reference('user_id').notNull(),
-    providerUserId: text('provider_user_id').notNull(),
+    providerUserId: text('provider_user_id'),
     providerJobId: text('provider_job_id'),
     status: text('status').$type<KycStatus>().notNull().default('pending'),
     resultCode: text('result_code'),

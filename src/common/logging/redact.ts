@@ -78,6 +78,12 @@ export const REDACT_PATHS: readonly string[] = [
   '*.bvn',
   'nin',
   '*.nin',
+  'selfie',
+  '*.selfie',
+  'firstName',
+  '*.firstName',
+  'lastName',
+  '*.lastName',
   // Smile ID returns result codes, which we store; never the document itself.
   'idNumber',
   '*.idNumber',

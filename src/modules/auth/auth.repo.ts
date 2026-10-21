@@ -160,4 +160,15 @@ export class AuthRepo {
       .set({ revokedAt: new Date() })
       .where(and(eq(sessions.tokenHash, tokenHash), isNull(sessions.revokedAt)));
   }
+
+  async recordKycResult(userId: string, birth: Date | null): Promise<void> {
+    await this.db
+      .update(users)
+      .set({
+        kycVerifiedAt: birth ? new Date() : null,
+        dateOfBirth: birth,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+  }
 }

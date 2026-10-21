@@ -99,12 +99,14 @@ One NestJS app, one deploy, one Postgres database. Inside, strict modules:
 evaluates adult status from a provider-verified document date of birth using the
 Lagos calendar. User status and admin review endpoints are present. Reviewers
 can reject with an audited reason, but cannot approve without provider evidence.
-Youverify sandbox credentials and a strict vForm report parser exist, but the
-account shows Quick Check rather than Workflow Builder. The vForm adapter is
-not connected to user verification. The direct ID API request, selfie evidence,
-result correlation and persistence are pending confirmation of the current
-Quick Check endpoint and response. Until then nobody gains verified status
-through this module. Future offer endpoints must call
+The signed-in user's `/verify` form submits a Nigerian NIN, legal names,
+document birth date and selfie to the backend. The backend calls Youverify's
+direct Quick Check NIN endpoint and grants verification only when the returned
+ID, names, birth date and selfie validations all pass. It stores only the
+provider check ID and decision metadata, then updates `auth.users` in the
+same transaction. Rate limits and a per-user pending row prevent repeated or
+concurrent billable checks. Sandbox response behavior still needs a live
+acceptance pass. Future offer endpoints must call
 `KycService.requireVerifiedAdult` server-side.
 
 ## 5. Money: Base + USDC escrow

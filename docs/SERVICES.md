@@ -78,14 +78,14 @@ are configured in ignored `backend/.env`; neither belongs in web or admin.
 `YOUVERIFY_BASE_URL` defaults to `https://api.sandbox.youverify.co` if unset.
 Production (`https://api.youverify.co`) must be chosen explicitly.
 
-**Configured locally:** Jaco supplied a staging API key and public merchant key;
-both are in ignored `backend/.env`. The dashboard menu includes **Quick Check**
-and no Workflow Builder, so the integration will use Youverify's direct ID-check
-API. A vForm ID is not needed for this path. The current vForm report adapter is
-not connected to user verification and will be replaced. Confirm the current
-Quick Check endpoint and response shape against the staging account before
-accepting real results. A real sandbox check must prove ID, selfie match and
-provider DOB before anyone is marked verified. Do not put ID images, numbers,
+**Configured locally:** Jaco supplied a staging API key, stored in ignored
+`backend/.env`. The public merchant key is not used by the direct Quick Check
+path. The backend now calls `POST /v2/api/identity/ng/nin` with the server key;
+the web form collects NIN, legal names, document DOB, selfie and consent. It
+grants verification only when Youverify returns matching ID, validated names
+and DOB, and a matching selfie. The [NIN API reference](https://doc.youverify.co/api-reference/quickcheck/kyc--nigeria/verify-national-identification-number-nin)
+documents this route and payload. A live sandbox result still needs to confirm
+the exact validation flags for this account. Do not put ID images, numbers,
 raw reports or the secret API key in Git or client code.
 
 ---

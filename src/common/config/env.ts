@@ -70,16 +70,6 @@ export const infraEnvSchema = z.object({
   YOUVERIFY_BASE_URL: z
     .enum(['https://api.sandbox.youverify.co', 'https://api.youverify.co'])
     .default('https://api.sandbox.youverify.co'),
-  YOUVERIFY_VFORM_ID: z
-    .string()
-    .min(1)
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
-  YOUVERIFY_PUBLIC_MERCHANT_KEY: z
-    .string()
-    .min(1)
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
 
   // CORS is an allowlist, never a wildcard: the session is an httpOnly cookie,
   // so a permissive origin is a credential-forwarding hole.

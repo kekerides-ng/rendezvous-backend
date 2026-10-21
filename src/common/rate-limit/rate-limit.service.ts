@@ -79,6 +79,7 @@ export const RATE_LIMITS = {
   offerCreate: { limit: 20, windowMs: 60 * 60 * 1000 },
   messageSend: { limit: 30, windowMs: 60 * 1000 },
   mediaUpload: { limit: 20, windowMs: 60 * 60 * 1000 },
+  kycCheck: { limit: 3, windowMs: 24 * 60 * 60 * 1000 },
 } as const satisfies Record<string, RateLimitPolicy>;
 
 export type RateLimitAction = keyof typeof RATE_LIMITS;

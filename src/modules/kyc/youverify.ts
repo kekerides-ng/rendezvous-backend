@@ -1,77 +1,115 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { CONFIG, type Env } from '../../common/config';
 import { documentBirthDate, evaluateEvidence, type ProviderEvidence } from './domain/verification';
 
-type RecordValue = Record<string, unknown>;
-const object = (value: unknown): RecordValue | undefined =>
+type JsonObject = Record<string, unknown>;
+const object = (value: unknown): JsonObject | undefined =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? (value as RecordValue)
+    ? (value as JsonObject)
     : undefined;
 
-/** Never persist or log this object: Youverify reports can contain IDs and images. */
-export function readYouverifyEvidence(raw: unknown): ProviderEvidence {
-  const report = object(raw);
-  const fields = Array.isArray(report?.fields) ? report.fields : [];
-  const identities = fields.map(object).filter((field) => field?.__type === 'identity');
-  const identity = identities.length === 1 ? identities[0] : undefined;
-  const result = object(identity?.report);
-  const validations = object(result?.validations);
+export interface NinCheck {
+  nin: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  selfie: string;
+}
+
+/** Extract only decisions and the provider's opaque check ID. Never retain the raw response. */
+export function readNinEvidence(
+  raw: unknown,
+  input: NinCheck,
+): {
+  evidence: ProviderEvidence;
+  providerJobId?: string | undefined;
+} {
+  const envelope = object(raw);
+  const data = object(envelope?.data);
+  const validations = object(data?.validations);
+  const fields = object(validations?.data);
   const selfie = object(object(validations?.selfie)?.selfieVerification);
-  const birth = result?.dateOfBirth;
-  const dateOfBirth =
-    typeof birth === 'string' && /^\d{4}-\d{2}-\d{2}(?:T00:00:00(?:\.\d+)?Z)?$/.test(birth)
-      ? birth.slice(0, 10)
-      : undefined;
-  const validBirth = documentBirthDate(dateOfBirth);
-  const checkedIdentity =
-    identity?.validated === true &&
-    identity.status === 'found' &&
-    result?.status === 'found' &&
-    result.allValidationPassed === true &&
+  const checked =
+    envelope?.success === true &&
+    data?.status === 'found' &&
+    data.country === 'NG' &&
+    data.type === 'nin' &&
+    data.idNumber === input.nin &&
+    data.isConsent === true &&
+    data.dataValidation === true &&
+    data.selfieValidation === true &&
+    data.allValidationPassed === true &&
+    object(fields?.firstName)?.validated === true &&
+    object(fields?.lastName)?.validated === true &&
+    object(fields?.dateOfBirth)?.validated === true &&
     selfie?.match === true &&
-    validBirth !== undefined &&
-    typeof report?.completedVerifications === 'number' &&
-    report.completedVerifications > 0;
-  const approved = report?.status === 'cleared' && checkedIdentity;
+    typeof data.dateOfBirth === 'string' &&
+    documentBirthDate(data.dateOfBirth) !== undefined &&
+    data.dateOfBirth === input.dateOfBirth;
+  const rejected = data?.status === 'not_found' || selfie?.match === false;
   return {
-    resultCode: typeof report?.status === 'string' ? report.status : 'unknown',
-    approved,
-    rejected: report?.status === 'not_cleared' || identity?.status === 'not_found',
-    // A DOB from a typed form field or an unverified ID cannot prove underage.
-    dateOfBirth: checkedIdentity ? dateOfBirth : undefined,
+    evidence: {
+      resultCode: typeof data?.status === 'string' ? data.status : 'unknown',
+      approved: checked,
+      rejected,
+      // A typed DOB, or one attached to an unproven ID, does not prove age.
+      dateOfBirth: checked ? input.dateOfBirth : undefined,
+    },
+    providerJobId:
+      typeof data?.id === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(data.id) ? data.id : undefined,
   };
 }
 
-export function assessYouverifyReport(raw: unknown, now = new Date()) {
-  return evaluateEvidence(readYouverifyEvidence(raw), now);
+export function assessNin(raw: unknown, input: NinCheck, now = new Date()) {
+  const result = readNinEvidence(raw, input);
+  return { ...result, assessment: evaluateEvidence(result.evidence, now) };
 }
 
-/** Server-only report client. The API key never crosses the KYC boundary. */
+/** Quick Check uses the server secret, never the browser's public merchant key. */
 @Injectable()
 export class YouverifyClient {
   constructor(@Inject(CONFIG) private readonly env: Env) {}
 
-  async report(responseId: string): Promise<unknown> {
-    if (!this.env.YOUVERIFY_API_KEY || !this.env.YOUVERIFY_VFORM_ID)
-      throw new Error('Youverify KYC is not configured.');
-    if (!/^[a-zA-Z0-9_-]{1,128}$/.test(responseId))
-      throw new Error('Invalid Youverify response ID.');
-    const url = new URL(
-      `/v2/api/v-forms/${encodeURIComponent(this.env.YOUVERIFY_VFORM_ID)}/responses/${encodeURIComponent(responseId)}`,
-      this.env.YOUVERIFY_BASE_URL,
-    );
-    const response = await fetch(url, {
-      headers: { token: this.env.YOUVERIFY_API_KEY, Accept: 'application/json' },
-      signal: AbortSignal.timeout(10_000),
-    });
+  async verifyNin(input: NinCheck): Promise<unknown> {
+    if (!this.env.YOUVERIFY_API_KEY)
+      throw new ServiceUnavailableException('Identity verification is not configured.');
+    const url = new URL('/v2/api/identity/ng/nin', this.env.YOUVERIFY_BASE_URL);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          token: this.env.YOUVERIFY_API_KEY,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          id: input.nin,
+          isSubjectConsent: true,
+          validations: {
+            data: {
+              firstName: input.firstName,
+              lastName: input.lastName,
+              dateOfBirth: input.dateOfBirth,
+            },
+            selfie: { image: input.selfie },
+          },
+        }),
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch {
+      throw new ServiceUnavailableException('Identity provider is temporarily unavailable.');
+    }
     if (!response.ok)
-      throw new Error(`Youverify report request failed (${String(response.status)}).`);
-    const envelope = object(await response.json());
-    const data = object(envelope?.data);
-    if (envelope?.success !== true || data?._id !== responseId)
-      throw new Error('Youverify returned an invalid report.');
-    if (data.templateId !== this.env.YOUVERIFY_VFORM_ID)
-      throw new Error('Youverify report belongs to a different form.');
-    return data;
+      throw new ServiceUnavailableException('Identity provider could not complete the check.');
+    let raw: unknown;
+    try {
+      raw = await response.json();
+    } catch {
+      throw new ServiceUnavailableException('Identity provider returned an invalid result.');
+    }
+    if (object(raw)?.success !== true || !object(object(raw)?.data))
+      throw new ServiceUnavailableException('Identity provider returned an invalid result.');
+    return raw;
   }
 }

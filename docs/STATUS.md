@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-21 (photo approval removed; live upload acceptance pending).**
+**Last updated: 2026-10-21 (migrations applied locally; gates re-verified).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -28,7 +28,7 @@ Steps 1.2, 1.3 and 2.1 remain unchecked.**
 
 | Repo | Current state |
 |---|---|
-| `backend` | Existing auth/admin/KYC modules plus `media.assets`, signed private upload/read URLs, object checks and quota. Upload confirmation marks a photo available immediately. Migrations `0005` and `0006` are generated but not applied here. KYC remains off by default. |
+| `backend` | Existing auth/admin/KYC modules plus `media.assets`, signed private upload/read URLs, object checks and quota. Upload confirmation marks a photo available immediately. **All 7 migrations are now applied locally** — `kyc.verifications` and `media.assets` exist. KYC remains off by default. |
 | `web` | Real phone sign-in and photo upload/removal in sign-up/edit screens. Other profile fields and discovery still use mocks. `/verify` remains paused. |
 | `admin` | Real auth, users management and KYC review. The photo review route and sidebar item were removed at Jaco's request. Production build remains unverified in this workspace. |
 | `contracts` | **0.5 complete.** Foundry/compiler pins, initialized exact OpenZeppelin/forge-std Git links, six-decimal test token and SafeERC20 smoke/fuzz tests, deployment JSON Schema/validator and CI. Formatting/build pass; 30 metadata tests and 2 Solidity tests pass, including 1,000 fuzz cases under the CI profile. No escrow implementation or deployed contract yet. |
@@ -66,10 +66,15 @@ discovery, which is 2.2.
 Local MinIO CORS is bound to `WEB_ORIGIN`; the bucket is made on first use.
 `backend/.env` uses `S3_REGION=us-east-1` for local MinIO; R2 uses `auto`.
 
-The Docker socket is denied in this workspace, Postgres `localhost:5433` refused
-connection, and the package registry could not be reached. The narrow S3
-SigV4 presigner and media service have unit tests, but neither media migration
-nor the browser-to-MinIO PUT has run live. Do not tick 2.1 yet.
+Migrations `0003`–`0006` had never been applied: the `kyc` and `media` schemas
+did not exist in the database at all, not just `0005`/`0006` as previously
+recorded. They were generated in a workspace where the Docker socket was
+denied and Postgres refused connections. **All seven are now applied against
+the local stack**, and `kyc.verifications` and `media.assets` exist.
+
+Still untested live: the **browser-to-MinIO PUT**. The S3 SigV4 presigner and
+the media service have unit tests, but no file has travelled from a browser to
+the bucket. **Do not tick 2.1 until it has.**
 
 ### App CI (0.6)
 

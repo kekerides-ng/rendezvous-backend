@@ -54,9 +54,11 @@ sandbox verification was possible in this workspace.
 The [Youverify vForm SDK](https://npm.io/package/youverify-web-sdk) requires a
 public merchant key and vForm ID. The [CWB report API](https://doc.youverify.co/custom-workflow-builder-cwb/cwb-external-api/retrieve-cwb-report)
 can return `cleared` even for a form with zero verifications, so the backend
-requires actual validated ID and selfie evidence. Jaco supplied only the server
-API key and sandbox URL so far; see `docs/SERVICES.md` for the two dashboard
-values and form configuration needed before browser capture can launch.
+requires actual validated ID and selfie evidence. Jaco supplied the server API key, sandbox URL and public merchant key. The
+current adapter still needs a configured vForm ID for browser capture. Youverify
+also offers [direct API ID checks](https://doc.youverify.co/guides/onboard-by-government-id)
+without a vForm; the integration path must be
+confirmed against the required ID, selfie and DOB evidence. See `docs/SERVICES.md`.
 
 ### App CI (0.6)
 

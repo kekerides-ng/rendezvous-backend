@@ -78,11 +78,12 @@ are configured in ignored `backend/.env`; neither belongs in web or admin.
 `YOUVERIFY_BASE_URL` defaults to `https://api.sandbox.youverify.co` if unset.
 Production (`https://api.youverify.co`) must be chosen explicitly.
 
-**Still needed from the Youverify dashboard:** a sandbox vForm configured for
-identity verification with document DOB and selfie comparison, its vForm ID, and
-the public merchant key. Set `YOUVERIFY_VFORM_ID` and
-`YOUVERIFY_PUBLIC_MERCHANT_KEY` in `backend/.env`. The browser SDK requires both;
-the API key alone cannot open a vForm. A real sandbox result must be inspected
+**Configured locally:** Jaco supplied the public merchant key, now in ignored
+`backend/.env` alongside the sandbox API key. The current vForm-based adapter
+still needs a sandbox vForm configured for identity verification, document DOB
+and selfie comparison, plus its vForm ID (`YOUVERIFY_VFORM_ID`). A direct API
+verification path is also available and does not require a vForm; decide which
+path supports the required ID and selfie evidence before wiring browser capture. A real sandbox result must be inspected
 before enabling automatic approval. Do not put ID images, numbers, raw reports or
 the secret API key in Git or client code.
 

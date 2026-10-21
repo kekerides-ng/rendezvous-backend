@@ -326,3 +326,21 @@ new commands here produces a readable connection-refused error, but sandbox
 network access still prevents diagnosing the user's database. The Compose name
 edit belongs to the user and was left untouched. No volume was reset and no
 applied migration was edited.
+
+
+## Step 0.6 — app CI (2026-10-21)
+
+The workflow installs frozen dependencies with Bun 1.4.0 on Node 22, then runs
+typecheck, lint and tests as separate failure points. It runs for pull requests,
+main pushes and manual dispatch, with read-only permissions and no app secrets.
+Disposable Postgres/Redis services give the backend real dependency endpoints without touching local Docker data. Existing HTTP tests still permit readiness failure and repositories use fakes; CI does not claim live database transaction coverage.
+
+All three apps pass local checks (141 backend, 393 web, 34 admin tests). YAML
+validation passes; hosted Linux installation and services await the first push.
+No deployment or branch protection is configured by this workflow.
+
+Questions to review:
+
+1. Why must CI install from the committed lockfile?
+2. What can pass locally because of generated files but fail on a fresh clone?
+3. Why does a passing test suite still leave live acceptance work to do?

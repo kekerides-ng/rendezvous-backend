@@ -44,6 +44,16 @@ remains independent.
    - The backend gets these values from `companion-contracts`: each deploy writes `deployments/<network>.json` (chainId, escrow, usdc, deployBlock, abi) and is tagged (e.g. `v1.0.0-sepolia`). The backend pulls a tag with `bun run chain:sync <tag>`.
 3. **Socket.io** on the backend, used by web for chat, offers, booking updates and live location.
 
+### Continuous integration
+
+Each app repo runs typecheck, lint and tests in GitHub Actions on pull requests,
+main pushes and manual dispatch. Workflows use Node 22, Bun 1.4.0 and frozen
+lockfiles. Next.js route types are generated first; backend tests receive isolated
+Postgres 16 and Redis 7 services with test-only credentials. Current backend tests
+do not exercise spatial queries or require migrations/MinIO. Extend the services
+when integration tests need them. Contracts keep their separate Foundry workflow.
+These checks do not deploy the apps or replace live acceptance testing.
+
 ## 3. Backend: modular monolith
 
 One NestJS app, one deploy, one Postgres database. Inside, strict modules:

@@ -238,3 +238,15 @@ the standard ones.
 
 `backend/.env.example` and `web/.env.example` list every variable with safe local defaults.
 Copy to `.env` and fill in only what the step you are on needs.
+
+
+## GitHub Actions — app CI (0.6)
+
+Each app repo includes `.github/workflows/ci.yml`. To run it remotely, host that
+repo on GitHub and enable Actions according to the repository/organisation policy.
+No app secrets or provider credentials need copying into Actions. Test database
+credentials are disposable job-local values. No remote has been configured or
+pushed by the agent; the first hosted run is pending the user's push. Local checks
+continue to work without a GitHub account. Branch protection, if desired, must be
+configured in GitHub after the first successful run; workflows alone do not block
+merges.

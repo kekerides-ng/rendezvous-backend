@@ -18,7 +18,7 @@ Mark done with `[x]`.
 - [x] **0.3 web:** `create-next-app` with Bun, Tailwind, TanStack Query, `api:gen` script, PWA manifest + service worker (Serwist), app shell with tabs.
 - [x] **0.4 admin:** `create-next-app` with Bun, Tailwind, `api:gen` script, sidebar layout, login page shell.
 - [x] **0.5 contracts:** Foundry scaffold, pinned OpenZeppelin/forge-std, folder layout, `deployments/` schema and validator, CI with `forge test` + `forge fmt --check`. *Local checks pass: 30 metadata tests, 2 Solidity tests and 1,000 CI-profile fuzz cases.*
-- [ ] **0.6 CI** in each app repo: typecheck, lint, test.
+- [x] **0.6 CI** in each app repo: typecheck, lint, test. *Workflows defined; local equivalents pass (568 tests). First hosted run pending push.*
 
 ## Phase 1 — Identity
 - [x] **1.1 Admin auth:** backend admin module (email + password + TOTP, roles, audit log) → admin login, 2FA setup, admin users page. *Built first so every later slice has its admin side.*

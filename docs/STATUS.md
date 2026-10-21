@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-20 (0.5 contracts foundation complete and validated).**
+**Last updated: 2026-10-21 (0.6 app CI implemented; local checks pass).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -28,6 +28,22 @@ live database/browser acceptance pass below.**
 | `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Everything after sign-in is mock. API types regenerated; typecheck/lint and 393 tests pass. |
 | `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`, now using the web's Rendezvous brand. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate. 34 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
 | `contracts` | **0.5 complete.** Foundry/compiler pins, initialized exact OpenZeppelin/forge-std Git links, six-decimal test token and SafeERC20 smoke/fuzz tests, deployment JSON Schema/validator and CI. Formatting/build pass; 30 metadata tests and 2 Solidity tests pass, including 1,000 fuzz cases under the CI profile. No escrow implementation or deployed contract yet. |
+
+### App CI (0.6)
+
+Backend, web and admin each have `.github/workflows/ci.yml`: pull requests,
+pushes to `main`, and manual runs install the frozen Bun lockfile, then run
+separate typecheck, lint and test steps. Node 22 and Bun 1.4.0 match the project.
+Next.js route types are generated before typechecking fresh checkouts. Backend
+jobs use disposable Postgres 16 and Redis 7 services; current tests need neither
+PostGIS extensions, migrated tables nor MinIO. Spatial/database integration
+coverage must extend this setup when those tests arrive.
+
+Local equivalents pass: backend 141, web 393 and admin 34 tests, with typecheck
+and lint passing in each. Workflow YAML was parsed and required steps checked.
+Hosted actions, Linux dependency installation and service startup have not been
+run here. No remote was added and nothing was pushed. These workflows check code;
+they do not deploy it or replace the pending live acceptance pass for 1.2.
 
 ### Shared Rendezvous identity
 
@@ -59,7 +75,7 @@ No browser was available to the automation tool for a live visual review.
 
 ## Next actions
 
-1. Next implementation: **0.6 app CI**, then **1.3 KYC**. The contracts workflow already exists from 0.5.
+1. Next implementation: **1.3 KYC**. Step **0.6 app CI** is implemented in all three app repos; the contracts workflow already exists from 0.5.
 2. Finish the remaining live acceptance pass for **1.2**, then tick it in all four build-plan copies.
 3. **4.1 escrow implementation** stays in Phase 4; the foundation is ready for it now.
 

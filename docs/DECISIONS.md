@@ -626,3 +626,19 @@ checks pass, but Foundry is absent and GitHub downloads are blocked in the agent
 workspace. No Forge result, completed 0.5 checkbox or contracts implementation
 commit is claimed before those required checks run. This is a tool-access limit,
 not a need for a chain account or real funds.
+
+
+### I33 · Run the existing app checks on every pull request
+**2026-10-21, step 0.6.** Each app owns its CI workflow, using Node 22,
+Bun 1.4.0 and `bun install --frozen-lockfile`. Pull requests, main pushes and
+manual dispatch run separate typecheck, lint and test steps with read-only
+repository permissions. New runs cancel obsolete runs on the same ref.
+
+Next.js generates route types before tsc, so a fresh clone does not depend on
+someone having started the dev server. Backend tests get disposable Postgres 16
+and Redis 7 with health checks and explicit test-only connection settings. The
+current suite does not use spatial queries, migrations or object storage; those
+services/checks must be extended with future integration coverage. Provider
+verification remains mocked at its existing interface; no real credentials are
+needed. CI does not regenerate API schemas from an unavailable backend or deploy
+anything. Local checks pass; hosted workflow execution awaits a user push.

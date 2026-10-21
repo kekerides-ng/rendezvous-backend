@@ -5,11 +5,12 @@ import { KycAdminController } from './kyc.admin.controller';
 import { KycController } from './kyc.controller';
 import { KycRepo } from './kyc.repo';
 import { KycService } from './kyc.service';
+import { YouverifyClient } from './youverify';
 
 @Module({
   imports: [AdminModule, AuthModule],
   controllers: [KycController, KycAdminController],
-  providers: [KycRepo, KycService],
+  providers: [KycRepo, KycService, YouverifyClient],
   exports: [KycService],
 })
 export class KycModule {}

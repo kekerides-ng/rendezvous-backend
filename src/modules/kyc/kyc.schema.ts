@@ -10,7 +10,7 @@ export const verifications = kycSchema.table(
     id: id(),
     userId: reference('user_id').notNull(),
     providerUserId: text('provider_user_id').notNull(),
-  providerJobId: text('provider_job_id'),
+    providerJobId: text('provider_job_id'),
     status: text('status').$type<KycStatus>().notNull().default('pending'),
     resultCode: text('result_code'),
     reason: text('reason'),
@@ -22,7 +22,7 @@ export const verifications = kycSchema.table(
   },
   (table) => [
     uniqueIndex('kyc_user_key').on(table.userId),
-  uniqueIndex('kyc_provider_job_key').on(table.providerJobId),
+    uniqueIndex('kyc_provider_job_key').on(table.providerJobId),
     index('kyc_status_created_idx').on(table.status, table.createdAt),
   ],
 );

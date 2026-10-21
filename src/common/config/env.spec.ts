@@ -15,6 +15,12 @@ const valid = {
 } as const;
 
 describe('loadEnv', () => {
+  it('defaults Youverify to sandbox and rejects an unknown or mistyped URL', () => {
+    expect(loadEnv(valid).env.YOUVERIFY_BASE_URL).toBe('https://api.sandbox.youverify.co');
+    expect(() => loadEnv({ ...valid, YOUVERIFY_BASE_URL: 'https://api.other.test' })).toThrow(
+      EnvValidationError,
+    );
+  });
   it('coerces and defaults', () => {
     const { env } = loadEnv(valid);
     // The point of returning parsed data: PORT is a number, not '4000'.

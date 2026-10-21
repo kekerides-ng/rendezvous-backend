@@ -358,3 +358,21 @@ Questions to review:
 1. Why is a birthday entered during sign-up insufficient to prove adult status?
 2. Why can a reviewer reject but not manually approve a verification?
 3. What prevents an out-of-order provider result from changing the wrong user's status?
+
+
+## Step 1.3 provider switch — Youverify sandbox (2026-10-21)
+
+Jaco replaced the planned Smile ID integration with Youverify and supplied a
+sandbox API key. The key is in ignored backend `.env` only. Config defaults to
+the sandbox origin, accepts only the exact sandbox/production URLs, and will not
+silently make production requests when the URL is missing.
+
+The server-only report adapter checks report ID and vForm ownership, then maps a
+provider report to the existing adult policy. It does not accept `cleared` alone:
+Youverify's example shows a cleared response with zero verification steps. It
+requires one validated identity, a found ID report, passing validation and
+selfie comparison, and a usable document DOB. Unverified DOB is discarded.
+
+The API key cannot launch the browser vForm: a sandbox vForm ID and public
+merchant key are still needed. Capture, result correlation, persistence and
+live sandbox acceptance remain pending. Step 1.3 stays open.

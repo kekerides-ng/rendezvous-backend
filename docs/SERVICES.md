@@ -19,7 +19,7 @@ configured
 |---|---|---|---|
 | ✅ | **Privy** | 1.2 user auth | **Done** — credentials in place, sign-in works |
 | ⬜ | **Mapbox** | already built | The rendezvous map falls back to a placeholder until a token exists |
-| ⬜ | **Smile ID** | 1.3 KYC | The 18+ gate before anyone can make an offer |
+| ⬜ | **Youverify** | 1.3 KYC | The 18+ gate before anyone can make an offer |
 | ⬜ | Everything else | Phase 2+ | — |
 
 Mapbox is listed second because the code is already written and waiting — it is the
@@ -67,28 +67,24 @@ generous for static images; restrict the token by URL before production.
 
 ---
 
-## 3 · Smile ID — identity and the 18+ check ⬜
+## 3 · Youverify — identity and the 18+ check ⬜
 
-**What it does:** document verification, and the date of birth that proves 18+
-(`architecture.md` §1, §4). Nigerian provider, built for NIN/BVN/document checks.
+**What it does:** verifies an ID and its document date of birth before offers.
+The backend checks a successful identity result and selfie match; a form that
+merely says `cleared` is not sufficient.
 
-**First needed:** build-plan **1.3**. **Business signup** — expect it to take longer than
-the others, so start it before you need it.
+**First needed:** build-plan **1.3**. The sandbox server API key and sandbox URL
+are configured in ignored `backend/.env`; neither belongs in web or admin.
+`YOUVERIFY_BASE_URL` defaults to `https://api.sandbox.youverify.co` if unset.
+Production (`https://api.youverify.co`) must be chosen explicitly.
 
-**Create:** a partner account at `smileidentity.com`. Request **sandbox** credentials
-first.
-
-**Copy back when the provider integration is ready:** `SMILE_PARTNER_ID`,
-`SMILE_API_KEY`, `SMILE_ENVIRONMENT` (`sandbox`|`production`) and an HTTPS
-`SMILE_CALLBACK_URL` reachable from Smile ID → backend. These are planned
-server-side values; the app does not read them yet. Keep the API key out of web
-and admin apps. Confirm that the sandbox account enables document verification
-for Nigerian IDs and provides a supported browser capture flow. The current
-V3 document product expects a selfie plus liveness images and returns results
-asynchronously. Do not paste live credentials into chat or commit them.
-
-**Note:** `architecture.md` §8 — store result codes, never ID images. The webhook
-signature must be verified.
+**Still needed from the Youverify dashboard:** a sandbox vForm configured for
+identity verification with document DOB and selfie comparison, its vForm ID, and
+the public merchant key. Set `YOUVERIFY_VFORM_ID` and
+`YOUVERIFY_PUBLIC_MERCHANT_KEY` in `backend/.env`. The browser SDK requires both;
+the API key alone cannot open a vForm. A real sandbox result must be inspected
+before enabling automatic approval. Do not put ID images, numbers, raw reports or
+the secret API key in Git or client code.
 
 ---
 

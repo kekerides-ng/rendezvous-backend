@@ -5,7 +5,7 @@ NestJS **modular monolith** for the companion platform. One of four separate rep
 Read `docs/architecture.md` before designing anything. Check `docs/build-plan.md` for the current step. Append to `docs/learning-log.md` after each step. Jaco is learning as this is built, so explain what you did and why.
 
 ## Product line (never cross)
-Time and company only. No sexual services. 18+ verified via Smile ID. Fixed categories. Public venue for a first booking. No paid media unlocks. If a task would break this, stop and say so.
+Time and company only. No sexual services. 18+ verified via Youverify. Fixed categories. Public venue for a first booking. No paid media unlocks. If a task would break this, stop and say so.
 
 ## Stack
 NestJS · TypeScript strict · **Bun** for install and scripts (never npm/pnpm/yarn; commit `bun.lock`) · Node 22 runtime · Drizzle ORM · Postgres 16 + PostGIS · Redis · BullMQ · `@nestjs/event-emitter` · Socket.io · viem · Swagger (OpenAPI) · Vitest.

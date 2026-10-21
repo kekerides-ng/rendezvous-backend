@@ -9,7 +9,7 @@ A Nigeria-first companionship app. Verified adults book each other's time for di
 
 **Guardrails enforced in code**
 - No sexual services. Terms, copy, categories and moderation all say so.
-- 18+ only, proven by Smile ID document date of birth.
+- 18+ only, proven by Youverify-verified document date of birth.
 - Fixed categories: `DINNER_DATE`, `EVENT_PLUS_ONE`, `CITY_TOUR`, `ACTIVITY_PARTNER`, `COFFEE_CONVERSATION`.
 - First booking between two users must be at a public venue.
 - No paid unlock of private media. All media is moderated.
@@ -61,7 +61,7 @@ One NestJS app, one deploy, one Postgres database. Inside, strict modules:
 | Module | Owns (tables) | Notes |
 |---|---|---|
 | auth | users, sessions, wallets | Login via embedded-wallet provider; own session cookie |
-| kyc | verifications | Smile ID web flow + webhook |
+| kyc | verifications | Youverify vForm + server-verified report |
 | profile | profiles, availability, base_location (PostGIS) | Discovery search |
 | media | assets | R2 pre-signed uploads, moderation before publish |
 | messaging | conversations, messages, offers | Socket.io; keyword moderation |
@@ -99,8 +99,9 @@ One NestJS app, one deploy, one Postgres database. Inside, strict modules:
 evaluates adult status from a provider-verified document date of birth using the
 Lagos calendar. User status and admin review endpoints are present. Reviewers
 can reject with an audited reason, but cannot approve without provider evidence.
-The real Smile ID V3 document submission, callback/result check, and web capture
-flow are still pending provider sandbox setup. Until then nobody gains verified
+Youverify sandbox API access and strict report parsing are ready. The browser
+vForm, result correlation, and persistence of verified decisions remain pending
+the vForm ID and public merchant key. Until then nobody gains verified
 status through this module. Future offer endpoints must call
 `KycService.requireVerifiedAdult` server-side.
 
@@ -190,7 +191,7 @@ offer accepted ─► PENDING_FUNDING ──Funded (N conf)──► CONFIRMED �
 - Secrets only in env or a secret manager. The operator key is never in a repo or in admin.
 - Rate limits on login, OTP, offers, messages (Redis).
 - Validate every input with zod or class-validator. Use parameterized queries only.
-- Smile ID webhook signatures verified. Store result codes, not ID images.
+- Verify Youverify reports server-side before accepting results. Store result codes, not ID images.
 - NDPA: encrypt phone and DOB at column level; delete live location after the session; account deletion endpoint.
 - Contract: Foundry unit + fuzz + invariant tests; testnet (Base Sepolia) until reviewed. Mainnet only after an external review.
 - **Open legal question:** Nigeria's SEC regulates digital-asset businesses. Confirm the licensing position with a lawyer before real funds go live.

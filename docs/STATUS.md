@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-21 (1.3 KYC foundation implemented; provider integration pending).**
+**Last updated: 2026-10-21 (1.3 Youverify sandbox adapter implemented; browser flow pending).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -19,13 +19,13 @@ a remote or push unless asked. Never format Markdown with Prettier. Leave
 ## Where work stopped
 
 **Real user sign-in and the admin users slice are implemented. KYC age policy,
-status, storage and admin review are now wired; Smile ID submission and verified
+status, storage and admin review are now wired; Youverify vForm capture and verified
 result ingestion still need the sandbox integration. Most user app features
 continue to read mock data. Steps 1.2 and 1.3 remain unchecked.**
 
 | Repo | Current state |
 |---|---|
-| `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. New `/admin/users` list, phone reveal, suspend and reinstate endpoints. 173 tests pass, including KYC age/guard checks. Typecheck, lint and build pass. The KYC table migration is generated but not applied to live Postgres. |
+| `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. New `/admin/users` list, phone reveal, suspend and reinstate endpoints. 181 tests pass, including Youverify report policy checks. Typecheck, lint and build pass. The KYC table migration is generated but not applied to live Postgres. |
 | `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Most post-sign-in screens remain mock. The profile ID badge and `/verify` now read real KYC status. API types regenerated; typecheck/lint and 399 tests pass. |
 | `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`, now using the web's Rendezvous brand. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate, and a KYC review queue with audited rejection. 34 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
 | `contracts` | **0.5 complete.** Foundry/compiler pins, initialized exact OpenZeppelin/forge-std Git links, six-decimal test token and SafeERC20 smoke/fuzz tests, deployment JSON Schema/validator and CI. Formatting/build pass; 30 metadata tests and 2 Solidity tests pass, including 1,000 fuzz cases under the CI profile. No escrow implementation or deployed contract yet. |
@@ -43,20 +43,20 @@ image link or raw provider payload is stored in this module.
 
 The web profile badge now follows the backend's status instead of the old mock
 `ME.verified`; `/verify` explains the current state. The admin console has an
-ID review page. No real user can become verified yet. The Smile ID capture,
-submission, signed callback/result retrieval, provider job correlation and
-writing verified evidence into `auth.users` are still required. Do not treat
+ID review page. No real user can become verified yet. Youverify report retrieval and fail-closed evidence parsing are implemented.
+Browser vForm capture, secure result-to-user correlation, and writing verified
+evidence into `auth.users` are still required. Do not treat
 these screens or a `verified` status row as live KYC acceptance. The new
 migration needs to be applied in a running database before these endpoints are
-used. Local tests use mocked database access; no live database, browser or Smile
+used. Local tests use mocked database access; no live database, browser or Youverify
 sandbox verification was possible in this workspace.
 
-Smile ID's [current document verification documentation](https://docs.usesmileid.com/products/onboarding-with-biometrics/document-verification)
-describes V3 document/selfie/liveness submission and asynchronous results. The
-older official SDK's hosted-web token is a different flow. The provider account
-must have a sandbox product and web capture method confirmed before wiring a
-browser flow; do not substitute a fake KYC result. `docs/SERVICES.md` lists the
-sandbox values and HTTPS callback configuration needed from Jaco.
+The [Youverify vForm SDK](https://npm.io/package/youverify-web-sdk) requires a
+public merchant key and vForm ID. The [CWB report API](https://doc.youverify.co/custom-workflow-builder-cwb/cwb-external-api/retrieve-cwb-report)
+can return `cleared` even for a form with zero verifications, so the backend
+requires actual validated ID and selfie evidence. Jaco supplied only the server
+API key and sandbox URL so far; see `docs/SERVICES.md` for the two dashboard
+values and form configuration needed before browser capture can launch.
 
 ### App CI (0.6)
 
@@ -94,7 +94,7 @@ No browser was available to the automation tool for a live visual review.
 
 ### Verification completed and limits
 
-- Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**173 passed**), `bun run build`.
+- Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**181 passed**), `bun run build`.
 - Admin: typecheck, lint, tests (**34 passed**); these include proxy forwarding, filters, confirmations, role visibility, reveals and logout cleanup.
 - Web: typecheck, lint, tests (**399 passed**). Both API schemas were regenerated from the real controller metadata.
 - Backend HTTP tests run the real Nest/Express middleware, cookie parsing, guards, validation and route prefix rules in-process without binding a TCP port. Repository tests exercise Drizzle's real SQL/transaction driver with a fake connection, including audit-failure rollback.
@@ -104,7 +104,7 @@ No browser was available to the automation tool for a live visual review.
 
 ## Next actions
 
-1. Continue **1.3 KYC** with Smile ID sandbox integration, then the full web capture and callback flow. Step **0.6 app CI** is complete.
+1. Continue **1.3 KYC** with Youverify vForm setup, then the full web capture and verified-result flow. Step **0.6 app CI** is complete.
 2. Finish the remaining live acceptance pass for **1.2**, then tick it in all four build-plan copies.
 3. **4.1 escrow implementation** stays in Phase 4; the foundation is ready for it now.
 

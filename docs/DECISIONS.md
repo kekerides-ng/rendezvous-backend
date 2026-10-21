@@ -659,3 +659,17 @@ specify asynchronous document verification with selfie and liveness images;
 legacy hosted-web tokens are a separate integration and must not be assumed to
 work for this product. Provider submission/callback and live acceptance remain
 pending sandbox account/product confirmation, so build-plan 1.3 stays open.
+
+
+### I35 · Switch KYC provider to Youverify, with sandbox as the default
+**2026-10-21.** Jaco supplied Youverify sandbox credentials and chose it over
+Smile ID. The API key remains only in ignored `backend/.env`; the backend config
+accepts the exact sandbox and production origins and defaults to sandbox.
+
+A Youverify vForm can be `cleared` with zero verification steps. Approval must
+also find one validated identity field, a found provider report, a passed selfie
+comparison, and an unambiguous provider document birth date. The browser flow
+still requires a configured sandbox vForm ID and public merchant key. Until the
+result is correlated to a user and persisted, nobody is automatically verified.
+This supersedes the Smile ID vendor choice in I34; the adult-evidence policy
+remains in force.

@@ -9,7 +9,7 @@
 # stack, which holds 5432, 6379 and 9000-9001 on this machine. Container-internal
 # ports are untouched, so nothing inside the compose network changes.
 
-name: companion
+name: rendezvous
 
 services:
   postgres:
@@ -21,12 +21,12 @@ services:
     # swapping provenance for. If it ever bites, `imresamu/postgis:16-3.5` is a
     # native arm64 drop-in.
     image: postgis/postgis:16-3.4
-    container_name: companion-postgres
+    container_name: rendezvous-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-companion}
+      POSTGRES_DB: ${POSTGRES_DB:-rendezvous}
     ports:
       - '${POSTGRES_PORT:-5433}:5432'
     volumes:

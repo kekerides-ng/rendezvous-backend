@@ -79,14 +79,13 @@ are configured in ignored `backend/.env`; neither belongs in web or admin.
 Production (`https://api.youverify.co`) must be chosen explicitly.
 
 **Configured locally:** Jaco supplied a staging API key, stored in ignored
-`backend/.env`. The public merchant key is not used by the direct Quick Check
-path. The backend now calls `POST /v2/api/identity/ng/nin` with the server key;
-the web form collects NIN, legal names, document DOB, selfie and consent. It
-grants verification only when Youverify returns matching ID, validated names
-and DOB, and a matching selfie. The [NIN API reference](https://doc.youverify.co/api-reference/quickcheck/kyc--nigeria/verify-national-identification-number-nin)
-documents this route and payload. A live sandbox result still needs to confirm
-the exact validation flags for this account. Do not put ID images, numbers,
-raw reports or the secret API key in Git or client code.
+`backend/.env`. `KYC_PROVIDER=off` is now set there and is also the default.
+It skips KYC table reads so sign-in, profile, discovery and the admin console
+can run before KYC migrations. Change it to `youverify` only when the deferred
+provider-neutral capture/result flow has been built; changing the variable
+alone does not initiate checks. The old direct NIN form and endpoint were
+removed. The public merchant key is not used by the current code. Keep the
+server API key out of Git and client code.
 
 ---
 

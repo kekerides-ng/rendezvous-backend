@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-21 (1.3 direct NIN Quick Check wired; live acceptance pending).**
+**Last updated: 2026-10-21 (NIN flow removed; KYC off by default).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -19,14 +19,14 @@ a remote or push unless asked. Never format Markdown with Prettier. Leave
 ## Where work stopped
 
 **Real user sign-in and the admin users slice are implemented. KYC age policy,
-status, storage and admin review are now wired; direct Youverify NIN submission,
-verified-result ingestion and the web form are implemented. Most user app features
+status, storage and admin review remain, but submission is deferred and
+`KYC_PROVIDER=off` is the default. Most user app features
 continue to read mock data. Steps 1.2 and 1.3 remain unchecked.**
 
 | Repo | Current state |
 |---|---|
-| `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. `/admin/users` list, phone reveal, suspend and reinstate endpoints. Direct Youverify NIN Quick Check request, strict response assessment, per-user budget, pending reservation and decision persistence. KYC migration `0004` is generated but not applied to live Postgres. |
-| `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Most post-sign-in screens remain mock. The profile ID badge reads real KYC status; `/verify` now collects NIN, legal names, DOB, selfie and consent and posts to the backend. API types regenerated. |
+| `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. `/admin/users` list, phone reveal, suspend and reinstate endpoints. KYC status, adult policy and admin review remain; NIN submission is removed. With `KYC_PROVIDER=off`, KYC routes do not read the KYC table. Migration `0004` is retained because it may have been applied elsewhere. |
+| `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Most post-sign-in screens remain mock. The profile ID badge reads real KYC status; `/verify` is now a pause notice with a route back to discovery and no ID capture. API types regenerated. |
 | `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`, now using the web's Rendezvous brand. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate, and a KYC review queue with audited rejection. 34 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
 | `contracts` | **0.5 complete.** Foundry/compiler pins, initialized exact OpenZeppelin/forge-std Git links, six-decimal test token and SafeERC20 smoke/fuzz tests, deployment JSON Schema/validator and CI. Formatting/build pass; 30 metadata tests and 2 Solidity tests pass, including 1,000 fuzz cases under the CI profile. No escrow implementation or deployed contract yet. |
 
@@ -41,21 +41,15 @@ audit entry share one transaction. There is intentionally no manual approval
 endpoint: staff cannot manufacture identity or age evidence. No ID image, number,
 image link or raw provider payload is stored in this module.
 
-The web profile badge follows backend status; `/verify` collects NIN, legal
-names, document DOB, selfie and explicit consent. The backend calls Youverify's
-documented direct NIN Quick Check endpoint and accepts only a returned matching
-NIN, validated names and DOB, selfie match, and adult provider DOB. Partial or
-unknown responses go to review. A per-user pending row and three-per-day rate
-limit protect billable requests. Decision and `auth.users` changes share one
-transaction. The admin console has an ID review page. The KYC migrations still
-need to run against a live database, and a real sandbox response must confirm
-the validation flags before this step is accepted.
-
-The [Youverify NIN API reference](https://doc.youverify.co/api-reference/quickcheck/kyc--nigeria/verify-national-identification-number-nin)
-documents the direct route and fields. A vForm ID and public merchant key are
-not needed. The API secret stays in ignored `backend/.env`; never copy it to
-client code. This workspace cannot resolve the sandbox host or access the
-Docker socket, so no live check or migration was run. Step 1.3 remains open.
+The NIN form, backend route and Quick Check client were removed at Jaco's
+request. `KYC_PROVIDER=off` is set in ignored `backend/.env` and is the schema
+default. While off, user status returns `not_started` and the admin queue is
+empty without reading the KYC table, so those screens can run before KYC
+migrations. `/verify` asks for no ID and links back to discovery. The adult
+offer gate remains closed. `KYC_PROVIDER=youverify` selects the intended future
+provider; it does not currently start a check. Step 1.3 stays open for a
+provider-neutral capture/result flow and live acceptance. No new Youverify
+credentials or dashboard setup are required to continue other work.
 
 ### App CI (0.6)
 
@@ -93,7 +87,7 @@ No browser was available to the automation tool for a live visual review.
 
 ### Verification completed and limits
 
-- Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**189 passed**), `bun run build`.
+- Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**176 passed**), `bun run build`.
 - Admin: typecheck, lint, tests (**34 passed**); these include proxy forwarding, filters, confirmations, role visibility, reveals and logout cleanup.
 - Web: typecheck, lint, tests (**402 passed**). Both API schemas were regenerated from the real controller metadata.
 - Backend HTTP tests run the real Nest/Express middleware, cookie parsing, guards, validation and route prefix rules in-process without binding a TCP port. Repository tests exercise Drizzle's real SQL/transaction driver with a fake connection, including audit-failure rollback.
@@ -103,7 +97,7 @@ No browser was available to the automation tool for a live visual review.
 
 ## Next actions
 
-1. Run the **1.3 KYC** migrations and a consented sandbox NIN check; confirm the actual response flags and adult/underage decisions. Then tick 1.3. Step **0.6 app CI** is complete.
+1. Continue the next product slice without KYC submission. Return to **1.3 KYC** for a provider-neutral flow when ready; do not tick it yet. Step **0.6 app CI** is complete.
 2. Finish the remaining live acceptance pass for **1.2**, then tick it in all four build-plan copies.
 3. **4.1 escrow implementation** stays in Phase 4; the foundation is ready for it now.
 

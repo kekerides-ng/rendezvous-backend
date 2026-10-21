@@ -700,3 +700,16 @@ persist; `auth.users` is updated in the same transaction. One pending row and
 a three-per-day user budget protect billable calls. The sandbox host and local
 Docker socket are inaccessible in this workspace, so a live provider/database
 acceptance pass remains before checking off 1.3.
+
+
+### I38 · Pause KYC submission and select the future provider in env
+**2026-10-21.** Jaco asked to remove the NIN path and continue work on the
+rest of the product. The NIN form, route, Quick Check client and associated
+tests were removed. `KYC_PROVIDER=off` is the default and the current local
+setting; it skips KYC table reads for user status and the admin queue, so
+missing KYC migrations do not block those screens. It does not grant adult
+verification: offer gating fails closed while off. `youverify` is an explicit
+selection for the deferred provider-neutral flow, not a claim that a check can
+currently be submitted. The old provider-specific decisions I35–I37 are
+historical and are superseded for the active implementation. Step 1.3 stays
+open; the schema and adult policy remain for later reuse.

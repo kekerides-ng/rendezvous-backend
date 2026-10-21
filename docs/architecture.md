@@ -9,7 +9,7 @@ A Nigeria-first companionship app. Verified adults book each other's time for di
 
 **Guardrails enforced in code**
 - No sexual services. Terms, copy, categories and moderation all say so.
-- 18+ only, proven by Youverify-verified document date of birth.
+- 18+ only, proven by a provider-verified document date of birth.
 - Fixed categories: `DINNER_DATE`, `EVENT_PLUS_ONE`, `CITY_TOUR`, `ACTIVITY_PARTNER`, `COFFEE_CONVERSATION`.
 - First booking between two users must be at a public venue.
 - No paid unlock of private media. All media is moderated.
@@ -61,7 +61,7 @@ One NestJS app, one deploy, one Postgres database. Inside, strict modules:
 | Module | Owns (tables) | Notes |
 |---|---|---|
 | auth | users, sessions, wallets | Login via embedded-wallet provider; own session cookie |
-| kyc | verifications | Youverify Quick Check API + server-verified result |
+| kyc | verifications | provider-neutral verified ID and adult result; currently paused |
 | profile | profiles, availability, base_location (PostGIS) | Discovery search |
 | media | assets | R2 pre-signed uploads, moderation before publish |
 | messaging | conversations, messages, offers | Socket.io; keyword moderation |
@@ -99,14 +99,14 @@ One NestJS app, one deploy, one Postgres database. Inside, strict modules:
 evaluates adult status from a provider-verified document date of birth using the
 Lagos calendar. User status and admin review endpoints are present. Reviewers
 can reject with an audited reason, but cannot approve without provider evidence.
-The signed-in user's `/verify` form submits a Nigerian NIN, legal names,
-document birth date and selfie to the backend. The backend calls Youverify's
-direct Quick Check NIN endpoint and grants verification only when the returned
-ID, names, birth date and selfie validations all pass. It stores only the
-provider check ID and decision metadata, then updates `auth.users` in the
-same transaction. Rate limits and a per-user pending row prevent repeated or
-concurrent billable checks. Sandbox response behavior still needs a live
-acceptance pass. Future offer endpoints must call
+The direct NIN submission was removed at Jaco's request. `KYC_PROVIDER=off`
+is the default and makes user status and the admin review list return without
+touching the KYC table; sign-in, profile and discovery can proceed. Offers
+still require verified adult evidence and fail closed while KYC is off.
+`KYC_PROVIDER=youverify` selects the planned provider, but no new check can
+be submitted until a provider-neutral capture/result flow is built. The KYC
+schema, age policy, status and admin review boundary remain. Future offer
+endpoints must call
 `KycService.requireVerifiedAdult` server-side.
 
 ## 5. Money: Base + USDC escrow
@@ -195,7 +195,7 @@ offer accepted ─► PENDING_FUNDING ──Funded (N conf)──► CONFIRMED �
 - Secrets only in env or a secret manager. The operator key is never in a repo or in admin.
 - Rate limits on login, OTP, offers, messages (Redis).
 - Validate every input with zod or class-validator. Use parameterized queries only.
-- Verify Youverify reports server-side before accepting results. Store result codes, not ID images.
+- Verify provider reports server-side before accepting results. Store result codes, not ID images.
 - NDPA: encrypt phone and DOB at column level; delete live location after the session; account deletion endpoint.
 - Contract: Foundry unit + fuzz + invariant tests; testnet (Base Sepolia) until reviewed. Mainnet only after an external review.
 - **Open legal question:** Nigeria's SEC regulates digital-asset businesses. Confirm the licensing position with a lawyer before real funds go live.

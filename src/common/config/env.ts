@@ -61,6 +61,10 @@ export const infraEnvSchema = z.object({
     .optional()
     .or(z.literal('').transform(() => undefined)),
 
+  // Off by default so identity verification does not block work on other slices.
+  // Selecting Youverify records the intended provider; no ID submission flow is
+  // exposed until the provider-neutral integration is built.
+  KYC_PROVIDER: z.enum(['off', 'youverify']).default('off'),
   // KYC checks are billable in production. An absent URL always means sandbox.
   YOUVERIFY_API_KEY: z
     .string()
@@ -203,7 +207,11 @@ const describeTypo = ({
  * contains PATH and friends. Near-misses of declared keys come back as warnings.
  */
 export function loadEnv(env: Readonly<Record<string, string | undefined>> = process.env) {
-  const result = appEnvSchema.safeParse(env);
+  // A paused KYC integration must not prevent the rest of the app from
+  // booting because of an unused Youverify URL. The exact URL check still
+  // applies the moment Youverify is selected.
+  const input = env.KYC_PROVIDER === 'youverify' ? env : { ...env, YOUVERIFY_BASE_URL: undefined };
+  const result = appEnvSchema.safeParse(input);
   const declared = Object.keys(appEnvSchema.shape);
 
   if (!result.success) {

@@ -406,3 +406,17 @@ billable attempts. Tests cover these boundaries and the web submission.
 The sandbox hostname does not resolve in this workspace and Docker's socket is
 denied, so the provider's actual staging response and Postgres migration have
 not been exercised. Step 1.3 remains open for that acceptance pass.
+
+## Step 1.3 paused so other slices can continue (2026-10-21)
+
+Jaco asked to remove the NIN path, including its visible form. The NIN route,
+client and tests are gone. `KYC_PROVIDER=off` is now the default and is set in
+the ignored local backend `.env`. In this mode user KYC status and the admin
+review list do not query the KYC table, which avoids a missing migration
+blocking profile or discovery. The verify screen shows a pause notice and a
+link back to discovery. The offer gate still denies unverified accounts.
+
+The switch accepts `youverify` as the intended later provider. This is a
+selection, not an operational check: a provider-neutral capture/result flow
+must still be built. Keep migration `0004` rather than deleting it because it
+may already have been applied on another machine. Step 1.3 remains open.

@@ -13,7 +13,6 @@ import 'dotenv/config';
 import 'reflect-metadata';
 
 import { NestFactory } from '@nestjs/core';
-import type { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 
@@ -32,7 +31,7 @@ import { HEALTH_SERVICE } from './common/http/health.controller';
 import { installGracefulShutdown } from './common/http/shutdown';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+  const app = await NestFactory.create(AppModule, {
     // pino takes over from Nest's own logger, so boot lines are structured and
     // redacted like everything else. Buffered until the logger is resolved.
     bufferLogs: true,
@@ -59,10 +58,6 @@ async function bootstrap(): Promise<void> {
   // The admin session is an httpOnly cookie, so something has to parse it
   // before AdminGuard can read it.
   app.use(cookieParser());
-
-  // A compressed selfie is sent to Quick Check in the JSON body; bound it here
-  // as well as in the DTO so Express does not reject a normal camera image.
-  app.useBodyParser('json', { limit: '2mb' });
 
   // An allowlist, never a wildcard: the session is an httpOnly cookie, so a
   // permissive origin with credentials is a session-forwarding hole.

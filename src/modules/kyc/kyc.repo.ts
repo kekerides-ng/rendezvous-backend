@@ -1,7 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, count, eq, lt, ne, or } from 'drizzle-orm';
+import { asc, count, eq } from 'drizzle-orm';
 import { DRIZZLE, type DbExecutor, type Transaction } from '../../common/db';
-import type { KycStatus } from './domain/verification';
 import { verifications } from './kyc.schema';
 
 @Injectable()
@@ -14,68 +13,6 @@ export class KycRepo {
       .from(verifications)
       .where(eq(verifications.userId, userId));
     return row;
-  }
-
-  /** Reserve one in-flight check per user before calling a billable provider. */
-  async begin(userId: string): Promise<boolean> {
-    const now = new Date();
-    const [created] = await this.db
-      .insert(verifications)
-      .values({ userId, status: 'pending' })
-      .onConflictDoNothing({ target: verifications.userId })
-      .returning({ id: verifications.id });
-    if (created) return true;
-    const [restarted] = await this.db
-      .update(verifications)
-      .set({
-        status: 'pending',
-        resultCode: null,
-        reason: null,
-        adult: false,
-        providerApproved: false,
-        providerJobId: null,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(verifications.userId, userId),
-          ne(verifications.status, 'verified'),
-          ne(verifications.status, 'underage'),
-          or(
-            ne(verifications.status, 'pending'),
-            lt(verifications.updatedAt, new Date(now.getTime() - 5 * 60_000)),
-          ),
-        ),
-      )
-      .returning({ id: verifications.id });
-    return Boolean(restarted);
-  }
-
-  async complete(
-    userId: string,
-    input: {
-      status: KycStatus;
-      resultCode: string;
-      reason: string;
-      adult: boolean;
-      providerApproved: boolean;
-      providerJobId?: string;
-    },
-  ): Promise<void> {
-    const [row] = await this.db
-      .update(verifications)
-      .set({
-        status: input.status,
-        resultCode: input.resultCode,
-        reason: input.reason,
-        adult: input.adult,
-        providerApproved: input.providerApproved,
-        providerJobId: input.providerJobId ?? null,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(verifications.userId, userId), eq(verifications.status, 'pending')))
-      .returning({ id: verifications.id });
-    if (!row) throw new NotFoundException('Pending verification not found.');
   }
 
   async queue(page: number, pageSize: number) {

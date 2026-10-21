@@ -15,11 +15,24 @@ const valid = {
 } as const;
 
 describe('loadEnv', () => {
-  it('defaults Youverify to sandbox and rejects an unknown or mistyped URL', () => {
+  it('defaults Youverify to sandbox and validates its URL when selected', () => {
     expect(loadEnv(valid).env.YOUVERIFY_BASE_URL).toBe('https://api.sandbox.youverify.co');
-    expect(() => loadEnv({ ...valid, YOUVERIFY_BASE_URL: 'https://api.other.test' })).toThrow(
-      EnvValidationError,
-    );
+    expect(() =>
+      loadEnv({
+        ...valid,
+        KYC_PROVIDER: 'youverify',
+        YOUVERIFY_BASE_URL: 'https://api.other.test',
+      }),
+    ).toThrow(EnvValidationError);
+    expect(
+      loadEnv({ ...valid, KYC_PROVIDER: 'off', YOUVERIFY_BASE_URL: 'unused' }).env
+        .YOUVERIFY_BASE_URL,
+    ).toBe('https://api.sandbox.youverify.co');
+  });
+  it('keeps KYC off by default and allows an explicit Youverify selection', () => {
+    expect(loadEnv(valid).env.KYC_PROVIDER).toBe('off');
+    expect(loadEnv({ ...valid, KYC_PROVIDER: 'youverify' }).env.KYC_PROVIDER).toBe('youverify');
+    expect(() => loadEnv({ ...valid, KYC_PROVIDER: 'nin' })).toThrow(EnvValidationError);
   });
   it('coerces and defaults', () => {
     const { env } = loadEnv(valid);

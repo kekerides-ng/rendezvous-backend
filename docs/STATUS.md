@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-21 (1.3 Youverify sandbox adapter implemented; browser flow pending).**
+**Last updated: 2026-10-21 (1.3 Youverify Quick Check API path selected; live flow pending).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -19,7 +19,7 @@ a remote or push unless asked. Never format Markdown with Prettier. Leave
 ## Where work stopped
 
 **Real user sign-in and the admin users slice are implemented. KYC age policy,
-status, storage and admin review are now wired; Youverify vForm capture and verified
+status, storage and admin review are now wired; Youverify Quick Check submission and verified
 result ingestion still need the sandbox integration. Most user app features
 continue to read mock data. Steps 1.2 and 1.3 remain unchecked.**
 
@@ -43,22 +43,21 @@ image link or raw provider payload is stored in this module.
 
 The web profile badge now follows the backend's status instead of the old mock
 `ME.verified`; `/verify` explains the current state. The admin console has an
-ID review page. No real user can become verified yet. Youverify report retrieval and fail-closed evidence parsing are implemented.
-Browser vForm capture, secure result-to-user correlation, and writing verified
-evidence into `auth.users` are still required. Do not treat
-these screens or a `verified` status row as live KYC acceptance. The new
-migration needs to be applied in a running database before these endpoints are
-used. Local tests use mocked database access; no live database, browser or Youverify
-sandbox verification was possible in this workspace.
+ID review page. No real user can become verified yet. A vForm report parser and
+server-only report client were built, but the account dashboard shows Quick
+Check and no Workflow Builder. The vForm adapter is not wired to a user flow.
+The implementation path is now Youverify's direct Quick Check API. Exact staging
+endpoint and result shape, selfie evidence, user correlation and persistence to
+`auth.users` are still required. The KYC migration also needs to run against a
+live database. Local tests use mocked database access; no live database, browser
+or Youverify staging verification has been completed.
 
-The [Youverify vForm SDK](https://npm.io/package/youverify-web-sdk) requires a
-public merchant key and vForm ID. The [CWB report API](https://doc.youverify.co/custom-workflow-builder-cwb/cwb-external-api/retrieve-cwb-report)
-can return `cleared` even for a form with zero verifications, so the backend
-requires actual validated ID and selfie evidence. Jaco supplied the server API key, sandbox URL and public merchant key. The
-current adapter still needs a configured vForm ID for browser capture. Youverify
-also offers [direct API ID checks](https://doc.youverify.co/guides/onboard-by-government-id)
-without a vForm; the integration path must be
-confirmed against the required ID, selfie and DOB evidence. See `docs/SERVICES.md`.
+The [Youverify ID onboarding guide](https://doc.youverify.co/guides/onboard-by-government-id)
+describes direct API checks using the server key. The dashboard's Quick Check
+area runs checks manually; it is not a vForm configuration screen. A form ID is
+not needed for this path. The API key and public merchant key are configured in
+ignored `backend/.env`; do not copy the secret to client code. Step 1.3 remains
+open until a real staging result confirms the provider fields and age policy.
 
 ### App CI (0.6)
 
@@ -106,7 +105,7 @@ No browser was available to the automation tool for a live visual review.
 
 ## Next actions
 
-1. Continue **1.3 KYC** with Youverify vForm setup, then the full web capture and verified-result flow. Step **0.6 app CI** is complete.
+1. Continue **1.3 KYC** with Youverify Quick Check API verification, then web capture and verified-result persistence. Step **0.6 app CI** is complete.
 2. Finish the remaining live acceptance pass for **1.2**, then tick it in all four build-plan copies.
 3. **4.1 escrow implementation** stays in Phase 4; the foundation is ready for it now.
 

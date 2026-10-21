@@ -673,3 +673,16 @@ still requires a configured sandbox vForm ID and public merchant key. Until the
 result is correlated to a user and persisted, nobody is automatically verified.
 This supersedes the Smile ID vendor choice in I34; the adult-evidence policy
 remains in force.
+
+
+### I36 · Use Youverify Quick Check API for this account
+**2026-10-21.** Jaco's dashboard exposes Entities, Signals, Case Management,
+Watchlist and Quick Check, but no Workflow Builder. The vForm approach in I35
+was an assumption based on a separate Youverify product. Use the direct Quick
+Check ID-verification API for step 1.3; do not ask for or require a vForm ID.
+
+The prior vForm parser is not connected to user verification. Before enabling
+approval, confirm the staging endpoint and actual response, require provider
+ID and selfie evidence plus document DOB, link the result to the authenticated
+user, and persist only decision metadata. This supersedes I35's chosen capture
+path, not its sandbox default or the fail-closed adult policy.

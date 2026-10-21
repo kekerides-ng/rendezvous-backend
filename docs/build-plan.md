@@ -23,7 +23,7 @@ Mark done with `[x]`.
 ## Phase 1 — Identity
 - [x] **1.1 Admin auth:** backend admin module (email + password + TOTP, roles, audit log) → admin login, 2FA setup, admin users page. *Built first so every later slice has its admin side.*
 - [ ] **1.2 User auth + wallet:** backend auth module (verify embedded-wallet provider token, link wallet, session cookie) → web sign-in (email/phone or connect wallet) → admin users list + suspend. *Implementation now includes the admin list, suspend/reinstate and audited phone reveal; live database/browser acceptance remains before ticking.*
-- [ ] **1.3 KYC:** backend kyc module (Youverify vForm + verified report, 18+ check) → web verify flow → admin KYC review queue.
+- [ ] **1.3 KYC:** backend kyc module (Youverify Quick Check API + verified ID/selfie result, 18+ check) → web verify flow → admin KYC review queue.
 
 ## Phase 2 — Profiles and discovery
 - [ ] **2.1 Media:** R2 pre-signed uploads, moderation status → web upload → admin moderation queue.

@@ -61,7 +61,7 @@ One NestJS app, one deploy, one Postgres database. Inside, strict modules:
 | Module | Owns (tables) | Notes |
 |---|---|---|
 | auth | users, sessions, wallets | Login via embedded-wallet provider; own session cookie |
-| kyc | verifications | Youverify vForm + server-verified report |
+| kyc | verifications | Youverify Quick Check API + server-verified result |
 | profile | profiles, availability, base_location (PostGIS) | Discovery search |
 | media | assets | R2 pre-signed uploads, moderation before publish |
 | messaging | conversations, messages, offers | Socket.io; keyword moderation |
@@ -99,10 +99,12 @@ One NestJS app, one deploy, one Postgres database. Inside, strict modules:
 evaluates adult status from a provider-verified document date of birth using the
 Lagos calendar. User status and admin review endpoints are present. Reviewers
 can reject with an audited reason, but cannot approve without provider evidence.
-Youverify sandbox API access and strict report parsing are ready. The browser
-vForm, result correlation, and persistence of verified decisions remain pending
-the vForm ID and public merchant key. Until then nobody gains verified
-status through this module. Future offer endpoints must call
+Youverify sandbox credentials and a strict vForm report parser exist, but the
+account shows Quick Check rather than Workflow Builder. The vForm adapter is
+not connected to user verification. The direct ID API request, selfie evidence,
+result correlation and persistence are pending confirmation of the current
+Quick Check endpoint and response. Until then nobody gains verified status
+through this module. Future offer endpoints must call
 `KycService.requireVerifiedAdult` server-side.
 
 ## 5. Money: Base + USDC escrow

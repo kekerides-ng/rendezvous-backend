@@ -376,3 +376,13 @@ selfie comparison, and a usable document DOB. Unverified DOB is discarded.
 The API key cannot launch the browser vForm: a sandbox vForm ID and public
 merchant key are still needed. Capture, result correlation, persistence and
 live sandbox acceptance remain pending. Step 1.3 stays open.
+
+
+## Step 1.3 route correction — Quick Check, not vForm (2026-10-21)
+
+The account Jaco actually has shows Quick Check but not Workflow Builder. A
+vForm ID was therefore the wrong handoff request for this account. Direct ID
+verification is the selected path. The vForm client remains unconnected; a real
+staging response must establish the correct endpoint and fields before wiring
+submission and automatic approval. This correction does not change the strict
+adult policy or the sandbox-only default.

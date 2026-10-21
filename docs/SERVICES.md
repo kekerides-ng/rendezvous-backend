@@ -78,14 +78,15 @@ are configured in ignored `backend/.env`; neither belongs in web or admin.
 `YOUVERIFY_BASE_URL` defaults to `https://api.sandbox.youverify.co` if unset.
 Production (`https://api.youverify.co`) must be chosen explicitly.
 
-**Configured locally:** Jaco supplied the public merchant key, now in ignored
-`backend/.env` alongside the sandbox API key. The current vForm-based adapter
-still needs a sandbox vForm configured for identity verification, document DOB
-and selfie comparison, plus its vForm ID (`YOUVERIFY_VFORM_ID`). A direct API
-verification path is also available and does not require a vForm; decide which
-path supports the required ID and selfie evidence before wiring browser capture. A real sandbox result must be inspected
-before enabling automatic approval. Do not put ID images, numbers, raw reports or
-the secret API key in Git or client code.
+**Configured locally:** Jaco supplied a staging API key and public merchant key;
+both are in ignored `backend/.env`. The dashboard menu includes **Quick Check**
+and no Workflow Builder, so the integration will use Youverify's direct ID-check
+API. A vForm ID is not needed for this path. The current vForm report adapter is
+not connected to user verification and will be replaced. Confirm the current
+Quick Check endpoint and response shape against the staging account before
+accepting real results. A real sandbox check must prove ID, selfie match and
+provider DOB before anyone is marked verified. Do not put ID images, numbers,
+raw reports or the secret API key in Git or client code.
 
 ---
 

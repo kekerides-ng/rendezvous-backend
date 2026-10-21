@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-21 (0.6 app CI implemented; local checks pass).**
+**Last updated: 2026-10-21 (1.3 KYC foundation implemented; provider integration pending).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -18,16 +18,45 @@ a remote or push unless asked. Never format Markdown with Prettier. Leave
 
 ## Where work stopped
 
-**Real user sign-in and the admin users slice are implemented. Everything else
-in the user app still reads mock data. Step 1.2 remains unchecked until the
-live database/browser acceptance pass below.**
+**Real user sign-in and the admin users slice are implemented. KYC age policy,
+status, storage and admin review are now wired; Smile ID submission and verified
+result ingestion still need the sandbox integration. Most user app features
+continue to read mock data. Steps 1.2 and 1.3 remain unchecked.**
 
 | Repo | Current state |
 |---|---|
-| `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. New `/admin/users` list, phone reveal, suspend and reinstate endpoints. 141 tests pass, including 11 users HTTP-contract checks. Typecheck, lint and build pass. No schema migration needed for this slice. |
-| `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Everything after sign-in is mock. API types regenerated; typecheck/lint and 393 tests pass. |
-| `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`, now using the web's Rendezvous brand. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate. 34 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
+| `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. New `/admin/users` list, phone reveal, suspend and reinstate endpoints. 173 tests pass, including KYC age/guard checks. Typecheck, lint and build pass. The KYC table migration is generated but not applied to live Postgres. |
+| `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Most post-sign-in screens remain mock. The profile ID badge and `/verify` now read real KYC status. API types regenerated; typecheck/lint and 399 tests pass. |
+| `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`, now using the web's Rendezvous brand. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate, and a KYC review queue with audited rejection. 34 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
 | `contracts` | **0.5 complete.** Foundry/compiler pins, initialized exact OpenZeppelin/forge-std Git links, six-decimal test token and SafeERC20 smoke/fuzz tests, deployment JSON Schema/validator and CI. Formatting/build pass; 30 metadata tests and 2 Solidity tests pass, including 1,000 fuzz cases under the CI profile. No escrow implementation or deployed contract yet. |
+
+### KYC progress (1.3 remains open)
+
+The backend now has the `kyc.verifications` schema/migration, strict document-DOB
+parsing, a Lagos-calendar 18+ check and a `requireVerifiedAdult` service method for
+future offer endpoints. A signed-in user can read only their KYC status; the admin
+review queue exposes only status, result codes and age/approval flags. Admin and
+moderator reviewers can reject a queued case with a reason; the status change and
+audit entry share one transaction. There is intentionally no manual approval
+endpoint: staff cannot manufacture identity or age evidence. No ID image, number,
+image link or raw provider payload is stored in this module.
+
+The web profile badge now follows the backend's status instead of the old mock
+`ME.verified`; `/verify` explains the current state. The admin console has an
+ID review page. No real user can become verified yet. The Smile ID capture,
+submission, signed callback/result retrieval, provider job correlation and
+writing verified evidence into `auth.users` are still required. Do not treat
+these screens or a `verified` status row as live KYC acceptance. The new
+migration needs to be applied in a running database before these endpoints are
+used. Local tests use mocked database access; no live database, browser or Smile
+sandbox verification was possible in this workspace.
+
+Smile ID's [current document verification documentation](https://docs.usesmileid.com/products/onboarding-with-biometrics/document-verification)
+describes V3 document/selfie/liveness submission and asynchronous results. The
+older official SDK's hosted-web token is a different flow. The provider account
+must have a sandbox product and web capture method confirmed before wiring a
+browser flow; do not substitute a fake KYC result. `docs/SERVICES.md` lists the
+sandbox values and HTTPS callback configuration needed from Jaco.
 
 ### App CI (0.6)
 
@@ -65,9 +94,9 @@ No browser was available to the automation tool for a live visual review.
 
 ### Verification completed and limits
 
-- Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**141 passed**), `bun run build`.
+- Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**173 passed**), `bun run build`.
 - Admin: typecheck, lint, tests (**34 passed**); these include proxy forwarding, filters, confirmations, role visibility, reveals and logout cleanup.
-- Web: typecheck, lint, tests (**393 passed**). Both API schemas were regenerated from the real controller metadata.
+- Web: typecheck, lint, tests (**399 passed**). Both API schemas were regenerated from the real controller metadata.
 - Backend HTTP tests run the real Nest/Express middleware, cookie parsing, guards, validation and route prefix rules in-process without binding a TCP port. Repository tests exercise Drizzle's real SQL/transaction driver with a fake connection, including audit-failure rollback.
 - **Not verified against live Postgres or in a browser during this session.** Docker socket access, local TCP connections and port binding were denied by the workspace sandbox. Real database lock contention still needs the live check.
 - **Admin production build remains unverified.** Turbopack's internal port binding was denied. A webpack fallback got past that but could not download Inter from Google Fonts (DNS/network denied). Product fonts/configuration were left intact.
@@ -75,7 +104,7 @@ No browser was available to the automation tool for a live visual review.
 
 ## Next actions
 
-1. Next implementation: **1.3 KYC**. Step **0.6 app CI** is implemented in all three app repos; the contracts workflow already exists from 0.5.
+1. Continue **1.3 KYC** with Smile ID sandbox integration, then the full web capture and callback flow. Step **0.6 app CI** is complete.
 2. Finish the remaining live acceptance pass for **1.2**, then tick it in all four build-plan copies.
 3. **4.1 escrow implementation** stays in Phase 4; the foundation is ready for it now.
 

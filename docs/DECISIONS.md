@@ -642,3 +642,20 @@ services/checks must be extended with future integration coverage. Provider
 verification remains mocked at its existing interface; no real credentials are
 needed. CI does not regenerate API schemas from an unavailable backend or deploy
 anything. Local checks pass; hosted workflow execution awaits a user push.
+
+
+### I34 · KYC approval requires provider evidence and document age
+**2026-10-21, step 1.3 in progress.** Self-declared birthday and client state
+cannot grant verification. The KYC domain parses an unambiguous document birth
+date, evaluates 18 years by the Lagos calendar, and grants a verified decision
+only when both provider approval and adult evidence are present. Missing or
+provisional evidence stays in review; an under-18 document is never overridden.
+
+Reviewers may reject with an audited reason, but the API has no manual-approve
+route. The KYC table stores only job references, status, result code and policy
+flags, not ID images, ID numbers, image links or raw provider responses. The
+backend service is the future server-side offer gate. Current Smile ID V3 docs
+specify asynchronous document verification with selfie and liveness images;
+legacy hosted-web tokens are a separate integration and must not be assumed to
+work for this product. Provider submission/callback and live acceptance remain
+pending sandbox account/product confirmation, so build-plan 1.3 stays open.

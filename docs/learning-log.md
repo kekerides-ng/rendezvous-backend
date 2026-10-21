@@ -344,3 +344,17 @@ Questions to review:
 1. Why must CI install from the committed lockfile?
 2. What can pass locally because of generated files but fail on a fresh clone?
 3. Why does a passing test suite still leave live acceptance work to do?
+
+
+## Step 1.3 checkpoint — KYC policy and review (2026-10-21)
+
+The KYC table keeps decision metadata only. The pure policy rejects invalid DOB, applies the 18th birthday in Lagos, and never allows an admin to approve someone without provider evidence. The service gate is ready for future offer routes, and rejection shares the audit transaction. The new migration has not run against live Postgres.
+
+Typecheck, lint and tests pass locally. Real Smile ID integration and live
+acceptance are still pending; step 1.3 remains unchecked.
+
+Questions to review:
+
+1. Why is a birthday entered during sign-up insufficient to prove adult status?
+2. Why can a reviewer reject but not manually approve a verification?
+3. What prevents an out-of-order provider result from changing the wrong user's status?

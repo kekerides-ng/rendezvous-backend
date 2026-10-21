@@ -22,6 +22,13 @@
       "when": 1792487771663,
       "tag": "0002_thin_marrow",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792573618888,
+      "tag": "0003_slippery_sentinel",
+      "breakpoints": true
     }
   ]
 }

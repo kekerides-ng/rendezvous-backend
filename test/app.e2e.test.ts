@@ -53,6 +53,12 @@ describe('app (e2e)', () => {
     expect(report.checks.map((check) => check.name).sort()).toEqual(['postgres', 'redis']);
   });
 
+  it('keeps KYC status and review endpoints behind their separate sessions', async () => {
+    expect((await inject(server(), { path: '/v1/kyc' })).status).toBe(401);
+    expect((await inject(server(), { path: '/admin/kyc' })).status).toBe(401);
+    expect((await inject(server(), { path: '/v1/admin/kyc' })).status).toBe(404);
+  });
+
   it('echoes the request id the caller sent', async () => {
     const response = await inject(server(), {
       path: '/health/live',

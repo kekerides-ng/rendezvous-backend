@@ -17,11 +17,22 @@ import { AdminGuard } from '../dist/modules/admin/admin.guard.js';
 import { AdminService } from '../dist/modules/admin/admin.service.js';
 import { HealthController, HEALTH_SERVICE } from '../dist/common/http/health.controller.js';
 
+import { KycController } from '../dist/modules/kyc/kyc.controller.js';
+import { KycAdminController } from '../dist/modules/kyc/kyc.admin.controller.js';
+import { KycService } from '../dist/modules/kyc/kyc.service.js';
+
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Nest module metadata container.
 class DocumentationModule {}
 Module({
-  controllers: [AuthController, UsersAdminController, AdminController, HealthController],
-  providers: [AuthService, SessionGuard, AdminService, AdminGuard, HEALTH_SERVICE].map(
+  controllers: [
+    AuthController,
+    UsersAdminController,
+    AdminController,
+    HealthController,
+    KycController,
+    KycAdminController,
+  ],
+  providers: [AuthService, SessionGuard, AdminService, AdminGuard, HEALTH_SERVICE, KycService].map(
     (provide) => ({ provide, useValue: {} }),
   ),
 })(DocumentationModule);

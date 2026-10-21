@@ -13,6 +13,7 @@ import { JobsModule } from './jobs';
 import { RealtimeModule } from './realtime';
 import { AdminModule } from './modules/admin';
 import { AuthModule } from './modules/auth';
+import { KycModule } from './modules/kyc/kyc.module';
 
 /**
  * Validated at import time, because the `imports` array below needs concrete
@@ -57,6 +58,7 @@ const { env } = loadEnv();
     // and the audit log are infrastructure every later module writes to.
     AdminModule,
     AuthModule,
+    KycModule,
   ],
 })
 export class AppModule implements NestModule {

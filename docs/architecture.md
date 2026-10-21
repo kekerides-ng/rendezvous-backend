@@ -95,6 +95,15 @@ One NestJS app, one deploy, one Postgres database. Inside, strict modules:
 - Only the `admin` role can suspend or reinstate a user. Both actions require a reason. Suspension revokes all sessions and prevents sign-in; reinstatement requires a fresh sign-in and never restores old sessions.
 - Sign-in and suspension lock the same user row. Status changes, session revocation and the audit insert share one database transaction, with each module retaining ownership of its tables through its repository/service. Audit failure rolls the change back.
 
+**KYC step 1.3:** the backend owns verification status in `kyc.verifications` and
+evaluates adult status from a provider-verified document date of birth using the
+Lagos calendar. User status and admin review endpoints are present. Reviewers
+can reject with an audited reason, but cannot approve without provider evidence.
+The real Smile ID V3 document submission, callback/result check, and web capture
+flow are still pending provider sandbox setup. Until then nobody gains verified
+status through this module. Future offer endpoints must call
+`KycService.requireVerifiedAdult` server-side.
+
 ## 5. Money: Base + USDC escrow
 
 Amounts are stored as **integer micro-USDC** (6 decimals) in `bigint`.

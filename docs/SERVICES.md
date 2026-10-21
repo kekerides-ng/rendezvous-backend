@@ -78,8 +78,14 @@ the others, so start it before you need it.
 **Create:** a partner account at `smileidentity.com`. Request **sandbox** credentials
 first.
 
-**Copy back:** `SMILE_PARTNER_ID`, `SMILE_API_KEY`, `SMILE_ENVIRONMENT`
-(`sandbox`|`production`), `SMILE_CALLBACK_URL` → backend
+**Copy back when the provider integration is ready:** `SMILE_PARTNER_ID`,
+`SMILE_API_KEY`, `SMILE_ENVIRONMENT` (`sandbox`|`production`) and an HTTPS
+`SMILE_CALLBACK_URL` reachable from Smile ID → backend. These are planned
+server-side values; the app does not read them yet. Keep the API key out of web
+and admin apps. Confirm that the sandbox account enables document verification
+for Nigerian IDs and provides a supported browser capture flow. The current
+V3 document product expects a selfie plus liveness images and returns results
+asynchronously. Do not paste live credentials into chat or commit them.
 
 **Note:** `architecture.md` §8 — store result codes, never ID images. The webhook
 signature must be verified.

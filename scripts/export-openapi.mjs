@@ -20,6 +20,9 @@ import { HealthController, HEALTH_SERVICE } from '../dist/common/http/health.con
 import { KycController } from '../dist/modules/kyc/kyc.controller.js';
 import { KycAdminController } from '../dist/modules/kyc/kyc.admin.controller.js';
 import { KycService } from '../dist/modules/kyc/kyc.service.js';
+import { MediaController } from '../dist/modules/media/media.controller.js';
+import { MediaAdminController } from '../dist/modules/media/media.admin.controller.js';
+import { MediaService } from '../dist/modules/media/media.service.js';
 
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Nest module metadata container.
 class DocumentationModule {}
@@ -31,8 +34,10 @@ Module({
     HealthController,
     KycController,
     KycAdminController,
+    MediaController,
+    MediaAdminController,
   ],
-  providers: [AuthService, SessionGuard, AdminService, AdminGuard, HEALTH_SERVICE, KycService].map(
+  providers: [AuthService, SessionGuard, AdminService, AdminGuard, HEALTH_SERVICE, KycService, MediaService].map(
     (provide) => ({ provide, useValue: {} }),
   ),
 })(DocumentationModule);

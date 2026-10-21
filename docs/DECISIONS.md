@@ -713,3 +713,18 @@ selection for the deferred provider-neutral flow, not a claim that a check can
 currently be submitted. The old provider-specific decisions I35–I37 are
 historical and are superseded for the active implementation. Step 1.3 stays
 open; the schema and adult policy remain for later reuse.
+
+### I39 · Private photo uploads go directly to S3-compatible storage
+**2026-10-21.** A user reserves at most six active images, then uploads with a
+five-minute PUT URL scoped to one key and MIME type. The API verifies the
+stored object's length, type and magic bytes before queueing it. Only the owner
+and the admin review queue receive short-lived GET URLs; profile/discovery may
+publish only approved assets. Admin decisions and audit records share a
+transaction. MinIO creates its bucket locally on first use; R2 buckets and
+CORS are provisioned for deployment.
+
+The package registry was unreachable in this workspace, so the backend uses a
+narrow Node-crypto S3 SigV4 presigner instead of adding the AWS SDK with an
+unreproducible lockfile. It is covered by unit tests, but no live S3 request
+could run because Docker access was denied. Keep 2.1 open until the real
+MinIO/browser flow and a production build are accepted.

@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-21 (NIN flow removed; KYC off by default).**
+**Last updated: 2026-10-21 (2.1 media implementation; live acceptance pending).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -21,13 +21,15 @@ a remote or push unless asked. Never format Markdown with Prettier. Leave
 **Real user sign-in and the admin users slice are implemented. KYC age policy,
 status, storage and admin review remain, but submission is deferred and
 `KYC_PROVIDER=off` is the default. Most user app features
-continue to read mock data. Steps 1.2 and 1.3 remain unchecked.**
+continue to read mock data. Photo uploads and admin moderation are implemented,
+but the new media migration and direct MinIO upload need a live acceptance pass.
+Steps 1.2, 1.3 and 2.1 remain unchecked.**
 
 | Repo | Current state |
 |---|---|
-| `backend` | Foundations 0.1/0.2, admin auth 1.1, Privy user auth, wallets and sessions. `/admin/users` list, phone reveal, suspend and reinstate endpoints. KYC status, adult policy and admin review remain; NIN submission is removed. With `KYC_PROVIDER=off`, KYC routes do not read the KYC table. Migration `0004` is retained because it may have been applied elsewhere. |
-| `web` | Drawn user app with real phone sign-in through Privy and the same-origin proxy. First login goes to `/sign-up/profile`, returning login to `/discover`. Most post-sign-in screens remain mock. The profile ID badge reads real KYC status; `/verify` is now a pause notice with a route back to discovery and no ID capture. API types regenerated. |
-| `admin` | Real password + TOTP login, shared protected console shell, dashboard and `/users`, now using the web's Rendezvous brand. Server-side filters/sort/pagination, masked phones, audited reveal, reason-required suspend/reinstate, and a KYC review queue with audited rejection. 34 tests pass; typecheck/lint pass. Production build is blocked in this workspace (see below). |
+| `backend` | Existing auth/admin/KYC modules plus `media.assets`, signed private upload/read URLs, object checks, quota, moderation queue and audited decisions. Migration `0005` is generated but not applied here. KYC remains off by default. |
+| `web` | Real phone sign-in and photo upload in sign-up/edit screens. A submitted photo waits for admin review; rejected photos show a reason. Other profile fields and discovery still use mocks. `/verify` remains paused. |
+| `admin` | Real auth, users management, KYC review and a photo moderation queue at `/media` with preview and reason-required decisions. Production build remains unverified in this workspace. |
 | `contracts` | **0.5 complete.** Foundry/compiler pins, initialized exact OpenZeppelin/forge-std Git links, six-decimal test token and SafeERC20 smoke/fuzz tests, deployment JSON Schema/validator and CI. Formatting/build pass; 30 metadata tests and 2 Solidity tests pass, including 1,000 fuzz cases under the CI profile. No escrow implementation or deployed contract yet. |
 
 ### KYC progress (1.3 remains open)
@@ -51,6 +53,22 @@ provider; it does not currently start a check. Step 1.3 stays open for a
 provider-neutral capture/result flow and live acceptance. No new Youverify
 credentials or dashboard setup are required to continue other work.
 
+### Media implementation (2.1 live acceptance pending)
+
+The backend has `media.assets` and migration `0005`, five-minute signed PUT
+URLs, an eight-MB JPEG/PNG/WebP limit, six active-photo slots, object metadata
+and magic-byte checks, private signed GET URLs, and an admin queue. Review
+decisions require a reason and commit with their audit row. The web photo
+picker in sign-up and profile edit now uploads files; admin `/media` previews
+and reviews them. Approved photos are not yet used in discovery, which is 2.2.
+Local MinIO CORS is bound to `WEB_ORIGIN`; the bucket is made on first use.
+`backend/.env` uses `S3_REGION=us-east-1` for local MinIO; R2 uses `auto`.
+
+The Docker socket is denied in this workspace, Postgres `localhost:5433` refused
+connection, and the package registry could not be reached. The narrow S3
+SigV4 presigner and media service have unit tests, but neither migration `0005`
+nor the browser-to-MinIO PUT has run live. Do not tick 2.1 yet.
+
 ### App CI (0.6)
 
 Backend, web and admin each have `.github/workflows/ci.yml`: pull requests,
@@ -61,7 +79,7 @@ jobs use disposable Postgres 16 and Redis 7 services; current tests need neither
 PostGIS extensions, migrated tables nor MinIO. Spatial/database integration
 coverage must extend this setup when those tests arrive.
 
-Local equivalents pass: backend 141, web 393 and admin 34 tests, with typecheck
+Local equivalents pass: backend 183, web 404 and admin 34 tests, with typecheck
 and lint passing in each. Workflow YAML was parsed and required steps checked.
 Hosted actions, Linux dependency installation and service startup have not been
 run here. No remote was added and nothing was pushed. These workflows check code;
@@ -87,9 +105,9 @@ No browser was available to the automation tool for a live visual review.
 
 ### Verification completed and limits
 
-- Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**176 passed**), `bun run build`.
+- Backend: `bun run typecheck`, `bun run lint`, `bun run test` (**183 passed**), `bun run build`.
 - Admin: typecheck, lint, tests (**34 passed**); these include proxy forwarding, filters, confirmations, role visibility, reveals and logout cleanup.
-- Web: typecheck, lint, tests (**402 passed**). Both API schemas were regenerated from the real controller metadata.
+- Web: typecheck, lint, tests (**404 passed**). Both API schemas were regenerated from the real controller metadata.
 - Backend HTTP tests run the real Nest/Express middleware, cookie parsing, guards, validation and route prefix rules in-process without binding a TCP port. Repository tests exercise Drizzle's real SQL/transaction driver with a fake connection, including audit-failure rollback.
 - **Not verified against live Postgres, Youverify or in a browser during this session.** Docker socket access and sandbox DNS were denied by the workspace. Real provider responses and database lock contention still need the live check.
 - **Admin production build remains unverified.** Turbopack's internal port binding was denied. A webpack fallback got past that but could not download Inter from Google Fonts (DNS/network denied). Product fonts/configuration were left intact.
@@ -97,9 +115,17 @@ No browser was available to the automation tool for a live visual review.
 
 ## Next actions
 
-1. Continue the next product slice without KYC submission. Return to **1.3 KYC** for a provider-neutral flow when ready; do not tick it yet. Step **0.6 app CI** is complete.
+1. Apply migration `0005` and run the media acceptance below. Tick **2.1** only after the live path works.
 2. Finish the remaining live acceptance pass for **1.2**, then tick it in all four build-plan copies.
-3. **4.1 escrow implementation** stays in Phase 4; the foundation is ready for it now.
+3. Build **2.2 profiles/discovery** after media acceptance. KYC 1.3 remains deferred and `KYC_PROVIDER=off`; paid plans remain gated.
+4. **4.1 escrow implementation** stays in Phase 4; the foundation is ready for it now.
+
+### Live acceptance pass for 2.1
+
+1. In `backend/`, run `docker compose up -d`, `bun run db:migrate`, then restart the backend. Confirm `S3_REGION=us-east-1` for local MinIO and `WEB_ORIGIN=http://localhost:3000`.
+2. Sign in at the web app; choose a small JPEG/PNG/WebP in sign-up or Profile → Edit. Confirm the upload appears as awaiting review, survives a refresh, and that the direct PUT to port 9002 succeeds.
+3. At `http://localhost:3001/media`, approve one photo with a reason and reject another. Confirm the owner sees the rejection reason and can remove the photo. Check `admin.audit_log` contains the decision without image data.
+4. Try an unsupported file, an oversized file and a seventh active photo; each must be refused. Confirm a failed upload does not occupy a slot forever. Check the admin production build with network access.
 
 ### Contracts foundation verification
 

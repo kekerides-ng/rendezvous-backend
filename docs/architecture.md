@@ -64,6 +64,18 @@ One NestJS app, one deploy, one Postgres database. Inside, strict modules:
 | kyc | verifications | provider-neutral verified ID and adult result; currently paused |
 | profile | profiles, availability, base_location (PostGIS) | Discovery search |
 | media | assets | R2 pre-signed uploads, moderation before publish |
+
+**Media step 2.1:** An authenticated user reserves a JPEG, PNG or WebP photo
+(1 byte–8 MB, at most six active photos), receives a five-minute S3 SigV4 PUT
+URL and uploads directly to private MinIO locally or R2 in deployment. The
+backend checks object length, MIME type and image magic bytes before moving it
+to `pending_review`. The owner and staff receive short-lived private GET URLs;
+there is no public image route yet. Admins and moderators approve or reject
+with a reason, atomically writing the result and audit entry. Only approved
+assets may be published by the future profile/discovery module. The local
+MinIO bucket is created on first reservation; browser PUT CORS is restricted
+to `WEB_ORIGIN` in Compose. Production R2 needs a precreated bucket and a CORS
+rule for that web origin. The live storage path still needs acceptance testing.
 | messaging | conversations, messages, offers | Socket.io; keyword moderation |
 | booking | bookings, check_ins | State machine |
 | escrow | chain_events, chain_cursor, escrow_records | Chain watcher + operator transactions |

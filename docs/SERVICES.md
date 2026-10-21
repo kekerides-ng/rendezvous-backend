@@ -103,6 +103,10 @@ for a deployed environment.
 `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`
 (`auto` for R2).
 
+For browser uploads, set an R2 bucket CORS rule allowing the deployed web
+origin, `PUT`, and the `Content-Type` request header. Local Compose sets MinIO
+CORS from `WEB_ORIGIN` and creates the local bucket on first upload reservation.
+
 ---
 
 ## 5 · Base RPC — reading and writing the chain ⬜

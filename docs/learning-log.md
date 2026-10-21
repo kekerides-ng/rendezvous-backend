@@ -420,3 +420,20 @@ The switch accepts `youverify` as the intended later provider. This is a
 selection, not an operational check: a provider-neutral capture/result flow
 must still be built. Keep migration `0004` rather than deleting it because it
 may already have been applied on another machine. Step 1.3 remains open.
+
+## Step 2.1 photo upload and moderation implementation (2026-10-21)
+
+The old photo slots only held local object URLs. They now reserve a private
+object, upload it to MinIO/R2, and wait for the backend to inspect the object
+before counting it toward onboarding. Failed uploads release the reservation.
+Photos enter `pending_review`, and the owner sees that state. Rejections show
+the reason and can be removed and replaced. The admin queue previews each
+photo and records reason-required approvals or rejections with an audit entry
+in the same transaction. No photo is public before approval.
+
+The storage signature uses the existing `S3_*` config and Node crypto because
+the package registry was unavailable; its signed headers and image validation
+have unit coverage. Local MinIO CORS is limited to `WEB_ORIGIN`. Migration
+`0005` and the browser upload path still need a live pass: this workspace
+cannot reach the Docker socket and Postgres on port 5433 refused connection.
+Do not tick 2.1 until that acceptance succeeds.

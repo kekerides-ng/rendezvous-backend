@@ -47,6 +47,22 @@ or pricing turns out wrong — the backend only verifies a token, so the swap is
 | App secret | `PRIVY_APP_SECRET` | backend |
 | App ID (again) | `NEXT_PUBLIC_PRIVY_APP_ID` | web |
 
+**Also required — allowlist the origins.** The app ID alone is not enough. Privy serves
+its embedded-wallet iframe with a `frame-ancestors` CSP built from a dashboard allowlist,
+so an origin that is not listed fails at provider mount with `Privy iframe failed to
+load: Error: Frame ancestor is not allowed`, and the embedded wallet is never created —
+sign-in dies after the code step. In **Configuration → App settings → Domains → Allowed
+origins → Web & mobile web**, add every origin the web app is served from:
+
+| Origin | When |
+|---|---|
+| `http://localhost:3000` | local development — **the port is required**, bare `localhost` does not match |
+| `http://<LAN IP>:3000` | testing on a phone over Wi-Fi; a different origin to Privy |
+| the deployed web origin | staging and production (`https`, no trailing path, list `www` and non-`www`) |
+
+Remove localhost before production. The admin console does not need an entry: it
+authenticates with email, password and TOTP, not Privy.
+
 **Note:** Privy sends the login SMS, so **no separate SMS provider is needed for OTP**.
 Termii (§9) is only for SOS messages to trusted contacts.
 

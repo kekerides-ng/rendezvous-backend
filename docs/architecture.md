@@ -93,7 +93,7 @@ The live storage path still needs acceptance testing.
 ## 4. Identity and auth
 
 **Users (web)**
-- Sign in with email or phone through the embedded-wallet provider (Privy is the default choice; Dynamic is the fallback, confirmed in build step 1). This also creates an embedded wallet on Base.
+- Sign in with email (one-time code) or Google through the embedded-wallet provider — no phone sign-in (DECISIONS.md I41) (Privy is the default choice; Dynamic is the fallback, confirmed in build step 1). This also creates an embedded wallet on Base.
 - Users can instead connect their own wallet (Coinbase Wallet, MetaMask, Rainbow…).
 - The backend verifies the provider's token, creates or loads the user, links the wallet address, and issues **its own httpOnly session cookie** (short-lived access JWT + rotating refresh).
 - KYC must be verified before a user can make or accept an offer.

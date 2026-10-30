@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-21 (migrations applied locally; gates re-verified).**
+**Last updated: 2026-10-30 (sign-in is email or Google only — I41).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -29,7 +29,7 @@ Steps 1.2, 1.3 and 2.1 remain unchecked.**
 | Repo | Current state |
 |---|---|
 | `backend` | Existing auth/admin/KYC modules plus `media.assets`, signed private upload/read URLs, object checks and quota. Upload confirmation marks a photo available immediately. **All 7 migrations are now applied locally** — `kyc.verifications` and `media.assets` exist. KYC remains off by default. |
-| `web` | Real phone sign-in and photo upload/removal in sign-up/edit screens. Other profile fields and discovery still use mocks. `/verify` remains paused. |
+| `web` | Real email/Google sign-in (no phone, I41) and photo upload/removal in sign-up/edit screens. Other profile fields and discovery still use mocks. `/verify` remains paused. |
 | `admin` | Real auth, users management and KYC review. The photo review route and sidebar item were removed at Jaco's request. Production build remains unverified in this workspace. |
 | `contracts` | **0.5 complete.** Foundry/compiler pins, initialized exact OpenZeppelin/forge-std Git links, six-decimal test token and SafeERC20 smoke/fuzz tests, deployment JSON Schema/validator and CI. Formatting/build pass; 30 metadata tests and 2 Solidity tests pass, including 1,000 fuzz cases under the CI profile. No escrow implementation or deployed contract yet. |
 
@@ -161,7 +161,7 @@ No RPC account, wallet or funds are needed for the local foundation checks.
 ### Live acceptance pass for 1.2
 
 Start Docker and the backend, web and admin on the ports below. Use an existing
-real user or sign in once by phone. Do not suspend a user's account without
+real user or sign in once by email or Google. Do not suspend a user's account without
 choosing an appropriate test account.
 
 1. Sign in as an admin, open Users, and verify the existing database row appears masked. Try status filters, timestamp sort, pagination and audited phone reveal.
@@ -198,8 +198,9 @@ Backend/admin/web builds use `bun run build`.
 
 ### Sign in as a user
 
-`http://localhost:3000` → Get started → actual phone number → SMS code.
-First sign-in goes to `/sign-up/profile`; later sign-ins go to `/discover`.
+`http://localhost:3000` → Get started → **Continue with Google**, or **Continue with
+email** → emailed 6-digit code. Privy's dashboard must have email and Google enabled
+and SMS off (`SERVICES.md` §1). First sign-in goes to `/sign-up/profile`; later sign-ins go to `/discover`.
 Privy's public app ID belongs in `web/.env` as `NEXT_PUBLIC_PRIVY_APP_ID`.
 `PRIVY_APP_ID` and `PRIVY_APP_SECRET` belong only in `backend/.env`. Never move
 the secret back to the web app or expose it with a `NEXT_PUBLIC_` prefix.
@@ -264,8 +265,8 @@ controller list current as modules are added.
 - User mocks are still in `web/src/lib/mock/`; delete the corresponding mock file when its slice is fully wired.
 - Mapbox needs `NEXT_PUBLIC_MAPBOX_TOKEN`; otherwise the map intentionally uses a drawn fallback. Photos are still placeholders.
 - Phone/DOB column encryption remains pre-production debt already recorded in the auth schema. This session did not change contact storage.
-- Preserve both existing `TODO(human)` markers: realtime socket authentication and the web Pill tone decision. I22 records the socket-ticket design, but the marker was not changed.
-- No new third-party accounts or secrets are required by this users slice. See `docs/SERVICES.md` for later integrations.
+- Preserve the existing `TODO(human)` markers: realtime socket authentication, the web Pill tone decision, and `looksLikeEmail` in `web/src/lib/email.ts` (the sign-in Send code button stays disabled until it is written). The old `shouldLinkPhone` marker went away with phone sign-in (I41). I22 records the socket-ticket design, but the marker was not changed.
+- Sign-in change (I41) needs only Privy dashboard toggles, no new accounts. No new third-party accounts or secrets are required by this users slice. See `docs/SERVICES.md` for later integrations.
 
 Detailed reasoning lives in `docs/DECISIONS.md`; repo-specific explanations and
 questions live in `docs/learning-log.md`.

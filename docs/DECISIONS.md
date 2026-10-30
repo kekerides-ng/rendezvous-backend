@@ -738,3 +738,22 @@ pending, rejected and approved uploads and clears their old review fields. The s
 supported formats, size bound and private object storage remain. Discovery
 still needs step 2.2 to read these assets. This supersedes the moderation
 parts of I39; its storage design remains active.
+
+### I41 · Users sign in with email or Google only; no phone sign-in
+**2026-10-30.** Jaco chose email and Google as the only user sign-in methods,
+after Telegram was considered and rejected. SMS login is removed from the web
+app and from Privy's `loginMethods`. Each method is now a complete account on
+its own: Google no longer ends at a phone-code screen, it exchanges its Privy
+token for our session straight away, and the backend's `isNew` routes to
+profile setup or discovery. This removes the link-or-login fork
+(`shouldLinkPhone`) that existed only to stop one person becoming two Privy
+users across phone and Google. The backend stores a Google user's email from
+`user.google.email`, because Privy does not put it under `user.email`.
+
+Consequences, accepted: new users have no phone number on record, so the admin
+"reveal phone" action returns nothing for them. A safety contact path for
+moderators will need another source, such as a phone collected later or the
+trusted contacts SOS already uses; that is not designed yet. The phone column,
+its index and reveal endpoint stay for existing rows. Privy treats an email
+code login and a Google login with the same address as separate users unless
+the dashboard links accounts by email; check that setting before launch.

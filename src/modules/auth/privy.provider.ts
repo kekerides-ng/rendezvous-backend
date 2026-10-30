@@ -6,8 +6,8 @@ import type { IdentityProvider, VerifiedIdentity } from './domain/identity-provi
 /**
  * Privy, behind the `IdentityProvider` seam.
  *
- * Two things it does for us, and only two: it proves a phone number or email
- * belongs to whoever is holding the token, and it gives that person an
+ * Two things it does for us, and only two: it proves an email address (typed,
+ * or vouched for by Google) belongs to whoever is holding the token, and it gives that person an
  * embedded Base wallet (architecture.md §4, §5).
  *
  * Everything after that is ours — our user row, our session cookie, our rate
@@ -52,7 +52,10 @@ export class PrivyIdentityProvider implements IdentityProvider {
     return {
       providerUserId: claims.userId,
       phone: user.phone?.number,
-      email: user.email?.address,
+      // A Google sign-in has no `user.email` — Privy files the address under
+      // the Google account instead. Without this fallback every Google user
+      // would be stored with no email at all.
+      email: user.email?.address ?? user.google?.email,
       wallets,
     };
   }

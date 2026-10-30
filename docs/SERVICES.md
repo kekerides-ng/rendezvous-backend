@@ -29,15 +29,21 @@ cheapest one to tick off, and the only one where you would see an immediate diff
 
 ## 1 · Privy — sign-in and embedded wallets ✅
 
-**What it does:** signs the user in by email or phone and creates an embedded Base wallet
+**What it does:** signs the user in by email or Google and creates an embedded Base wallet
 in the same step (`architecture.md` §4). The backend verifies Privy's token and issues its
 own httpOnly session cookie.
 
 **First needed:** build-plan **1.2**. **Fallback:** Dynamic, if Privy's Nigeria coverage
 or pricing turns out wrong — the backend only verifies a token, so the swap is contained.
 
-**Create:** a Privy app at `dashboard.privy.io`. Enable **email** and **SMS** login, and
-**embedded wallets** on **Base Sepolia** to start.
+**Create:** a Privy app at `dashboard.privy.io`. Under **User management → Authentication**,
+enable **email** and, under **Socials**, **Google**; leave **SMS off** (I41). Enable
+**embedded wallets** on **Base Sepolia** to start. A method the web app offers but the
+dashboard does not allow fails with `disallowed_login_method`.
+
+Privy's default Google credentials are fine locally. Before launch, add your own Google
+OAuth client (Google Cloud Console → Credentials) with authorized redirect URI
+`https://auth.privy.io/api/v1/oauth/callback`, so the consent screen says Rendezvous.
 
 **Copy back:**
 
@@ -63,8 +69,8 @@ origins → Web & mobile web**, add every origin the web app is served from:
 Remove localhost before production. The admin console does not need an entry: it
 authenticates with email, password and TOTP, not Privy.
 
-**Note:** Privy sends the login SMS, so **no separate SMS provider is needed for OTP**.
-Termii (§9) is only for SOS messages to trusted contacts.
+**Note:** Privy emails the login code, so **no email or SMS provider is needed for
+sign-in**. Termii (§9) is only for SOS messages to trusted contacts.
 
 ---
 

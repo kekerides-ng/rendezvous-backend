@@ -757,3 +757,21 @@ trusted contacts SOS already uses; that is not designed yet. The phone column,
 its index and reveal endpoint stay for existing rows. Privy treats an email
 code login and a Google login with the same address as separate users unless
 the dashboard links accounts by email; check that setting before launch.
+
+### I42 · Action failures are toasts; field errors stay on the field
+**2026-10-31.** Jaco asked for error notifications to show as toasts across the
+app. One `<Toaster>` is mounted in `web/src/app/providers.tsx`; anything calls
+`useToast().error(...)` or `.success(...)`. It holds one toast at a time,
+newest wins. Errors from an action (Google trip, sending a code, starting a
+session, photo upload/removal) are toasts. Errors about one input (email
+format, wrong OTP with tries left, wrong arrival code) stay beside that input,
+because a toast disappears before the input is fixed and cannot be tied to it
+with `aria-describedby`. A screen's failure to load its own content stays an
+in-page error state with retry (web CLAUDE.md rule 8), not a toast.
+
+The email code path now separates a wrong code from a failed session
+exchange: a right code with our backend down shows a toast and spends no
+tries. Google sign-in always exchanges Privy's token on return, even when
+Privy reports it was already authenticated, and clears `privy_oauth_*` from the
+URL. Skipping the exchange left users stuck on `/sign-up` when Privy had a
+session but our backend had not issued a cookie.

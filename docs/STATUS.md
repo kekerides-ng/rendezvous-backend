@@ -1,6 +1,6 @@
 # Status — Rendezvous
 
-**Last updated: 2026-10-30 (sign-in is email or Google only — I41).**
+**Last updated: 2026-10-31 (app-wide toasts for action errors — I42; sign-in is email or Google only — I41).**
 Master copy lives in `backend/docs/STATUS.md`. This file, `DECISIONS.md`,
 `architecture.md`, `build-plan.md` and `SERVICES.md` are byte-identical across
 backend, web, admin and contracts. Rewrite status after each piece of work.
@@ -29,7 +29,7 @@ Steps 1.2, 1.3 and 2.1 remain unchecked.**
 | Repo | Current state |
 |---|---|
 | `backend` | Existing auth/admin/KYC modules plus `media.assets`, signed private upload/read URLs, object checks and quota. Upload confirmation marks a photo available immediately. **All 7 migrations are now applied locally** — `kyc.verifications` and `media.assets` exist. KYC remains off by default. |
-| `web` | Real email/Google sign-in (no phone, I41) and photo upload/removal in sign-up/edit screens. Other profile fields and discovery still use mocks. `/verify` remains paused. |
+| `web` | Real email/Google sign-in (no phone, I41), app-wide error toasts via `useToast()` (I42), and photo upload/removal in sign-up/edit screens. Other profile fields and discovery still use mocks. `/verify` remains paused. |
 | `admin` | Real auth, users management and KYC review. The photo review route and sidebar item were removed at Jaco's request. Production build remains unverified in this workspace. |
 | `contracts` | **0.5 complete.** Foundry/compiler pins, initialized exact OpenZeppelin/forge-std Git links, six-decimal test token and SafeERC20 smoke/fuzz tests, deployment JSON Schema/validator and CI. Formatting/build pass; 30 metadata tests and 2 Solidity tests pass, including 1,000 fuzz cases under the CI profile. No escrow implementation or deployed contract yet. |
 
@@ -201,6 +201,8 @@ Backend/admin/web builds use `bun run build`.
 `http://localhost:3000` → Get started → **Continue with Google**, or **Continue with
 email** → emailed 6-digit code. Privy's dashboard must have email and Google enabled
 and SMS off (`SERVICES.md` §1). First sign-in goes to `/sign-up/profile`; later sign-ins go to `/discover`.
+**The backend must be running** (`bun run dev`, port 4000): if it is not, Google
+returns to `/sign-up` with a toast saying the session could not start.
 Privy's public app ID belongs in `web/.env` as `NEXT_PUBLIC_PRIVY_APP_ID`.
 `PRIVY_APP_ID` and `PRIVY_APP_SECRET` belong only in `backend/.env`. Never move
 the secret back to the web app or expose it with a `NEXT_PUBLIC_` prefix.
